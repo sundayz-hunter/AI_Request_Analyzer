@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/sundayz-hunter/AI_Request_Analyzer/blob/master/README.md
+    about: Check out the documentation before creating an issue

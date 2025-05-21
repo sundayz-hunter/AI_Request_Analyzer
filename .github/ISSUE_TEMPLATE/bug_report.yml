@@ -1,0 +1,72 @@
+name: 🐞 Bug Report
+description: Report a bug to help us improve the extension
+title: "bug: "
+labels: ["bug"]
+body:
+- type: textarea
+  attributes:
+    label: Current Behavior
+    description: A clear and concise description of what the bug is.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Expected Behavior
+    description: A clear and concise description of what you expected to happen.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Steps To Reproduce
+    description: Steps to reproduce the behavior.
+    placeholder: |
+      1. Go to '...'
+      2. Click on '...'
+      3. See error...
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Environment
+    description: |
+      Please provide details about your environment.
+      Examples:
+        - **Burp Suite**: Community 2023.1.2
+        - **OS**: Windows 10
+        - **Java**: JRE 11.0.12
+        - **Extension version**: 1.0.0
+    value: |
+        - Burp Suite: 
+        - OS: 
+        - Java: 
+        - Extension version: 
+    render: markdown
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Screenshots
+    description: If applicable, add screenshots to help explain your problem.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Additional Context
+    description: |
+      Any additional information that might be helpful? 
+      
+      Tip: You can attach log files or screenshots by clicking this area to highlight it and then dragging files in.
+  validations:
+    required: false
+- type: checkboxes
+  id: acknowledgements
+  attributes:
+    label: Acknowledgements
+    description: Please confirm the following before submitting your bug report.
+    options:
+      - label: I have searched existing issues and this bug has not been reported yet.
+        required: true
+      - label: I have included all requested information to help reproduce the issue.
+        required: true
+      - label: I am using the latest version of the extension.
+        required: true

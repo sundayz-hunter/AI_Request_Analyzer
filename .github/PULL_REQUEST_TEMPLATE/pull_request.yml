@@ -1,0 +1,81 @@
+name: 🚀 Pull Request
+description: Contribute to the project with your changes
+title: "type(scope): "
+labels: []
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for contributing to AI Request Analyzer! Please fill out the information below to help us review your pull request.
+      
+      Tip: Use descriptive titles like `feat(api): add Midjourney support` or `fix(cache): resolve performance issue`
+- type: textarea
+  attributes:
+    label: Description
+    description: Please provide a summary of the changes and which issue is fixed.
+    placeholder: |
+      This PR adds/fixes/improves...
+      
+      Resolves #(issue number)
+  validations:
+    required: true
+- type: dropdown
+  id: change-type
+  attributes:
+    label: Type of Change
+    description: What kind of change does this PR introduce?
+    options:
+      - Bug fix (non-breaking change that fixes an issue)
+      - New feature (non-breaking change that adds functionality)
+      - Breaking change (fix or feature with incompatible changes)
+      - Code refactoring (no functional changes)
+      - Performance improvement
+      - Documentation update
+      - Other (please describe)
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Implementation Details
+    description: Provide any technical details that would help reviewers understand your changes.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Testing Completed
+    description: Describe the testing you've done to verify your changes.
+    placeholder: |
+      - [ ] Tested with Burp Suite Community Edition
+      - [ ] Tested with local Ollama setup
+      - [ ] Tested with OpenRouter API
+  validations:
+    required: true
+- type: checkboxes
+  id: checklist
+  attributes:
+    label: Checklist
+    description: Please confirm that your PR meets these requirements.
+    options:
+      - label: My code follows the style guidelines of this project
+        required: true
+      - label: I have performed a self-review of my own code
+        required: true
+      - label: I have commented my code, particularly in hard-to-understand areas
+        required: true
+      - label: I have updated the documentation as necessary
+        required: true
+      - label: My changes generate no new warnings
+        required: true
+      - label: I have tested my changes in Burp Suite
+        required: true
+      - label: I have checked my code for Jython compatibility
+        required: true
+- type: textarea
+  attributes:
+    label: Screenshots
+    description: |
+      If applicable, add screenshots to help explain your changes.
+      
+      Tip: You can attach images by clicking this area and dragging files in.
+  validations:
+    required: false
