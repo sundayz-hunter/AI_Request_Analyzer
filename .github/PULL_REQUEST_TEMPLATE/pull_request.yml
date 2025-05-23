@@ -46,6 +46,7 @@ body:
     description: Describe the testing you've done to verify your changes.
     placeholder: |
       - [ ] Tested with Burp Suite Community Edition
+      - [ ] Tested with Burp Suite Professional
       - [ ] Tested with local Ollama setup
       - [ ] Tested with OpenRouter API
   validations:
