@@ -152,3 +152,9 @@ The project is organized into the following modules:
 - **prompts/**: Template prompts for different analysis types
   - **explain_prompt.txt**: Template for response analysis
   - **suggest_prompt.txt**: Template for request vulnerability suggestions
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png)
