@@ -47,21 +47,15 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         saved_use_openai = callbacks.loadExtensionSetting("ai_analyzer_use_openai") == "true"
         
         # Verification and correction: ensure active model matches provider
-        if saved_use_ollama:
-            saved_model = saved_ollama_model or ""
-            # Ensure active model is Ollama model
+        if saved_use_openai:
+            saved_model = saved_openai_model or ""
             callbacks.saveExtensionSetting("ai_analyzer_model", saved_model)
-            stdout.write("Using Ollama mode with model: " + saved_model + "\n")
+        elif saved_use_ollama:
+            saved_model = saved_ollama_model or ""
+            callbacks.saveExtensionSetting("ai_analyzer_model", saved_model)
         else:
             saved_model = saved_openrouter_model or ""
-            # Ensure active model is OpenRouter model
             callbacks.saveExtensionSetting("ai_analyzer_model", saved_model)
-
-        # Log loaded settings for debugging (only if models are defined)
-        if saved_ollama_model:
-            stdout.write("Loaded settings - Ollama model: " + saved_ollama_model + "\n")
-        if saved_openrouter_model:
-            stdout.write("Loaded settings - OpenRouter model: " + saved_openrouter_model + "\n")
 
         # Default configuration
         self._config = {

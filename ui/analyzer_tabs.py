@@ -140,7 +140,6 @@ class BaseAnalyzerTab(IMessageEditorTab, IMessageEditorController):
             # Check if we already have a cached analysis
             cached_result = self._extender.get_cached_analysis(new_hash, is_request)
             if cached_result:
-                self._stdout.write("Found cached analysis for message hash: {0}\n".format(new_hash))
                 # Convert cached text to bytes
                 cached_bytes = self._extender._helpers.stringToBytes(cached_result)
                 self._text_editor.setText(cached_bytes)
@@ -173,11 +172,7 @@ class BaseAnalyzerTab(IMessageEditorTab, IMessageEditorController):
         thread = threading.Thread(target=self._perform_analysis)
         thread.daemon = True
         thread.start()
-        
-        # Log the analysis request
-        if self._current_message:
-            self._stdout.write("Analysis request started for message hash: {0}\n".format(self._current_message_hash))
-    
+
     # Update UI safely
     def _update_text_safely(self, text):
         """

@@ -55,10 +55,8 @@ class ConfigLoader:
                 if os.path.exists(self._env_path):
                     self._load_env_file()
                 else:
-                    self._stdout.write("No .env file found, using default values\n")
                     self._config = self._defaults.copy()
             else:
-                self._stdout.write("Could not determine extension path, using default values\n")
                 self._config = self._defaults.copy()
         except Exception as e:
             self._stdout.write("Error loading config: " + str(e) + "\n")
@@ -98,8 +96,7 @@ class ConfigLoader:
                 except Exception:
                     # Use the string value if conversion fails
                     self._config[key] = value
-            
-            self._stdout.write("Config loaded from .env file\n")
+
         except Exception as e:
             self._stdout.write("Error parsing .env file: " + str(e) + "\n")
             self._config = self._defaults.copy()

@@ -518,11 +518,7 @@ class ClearCacheListener(ActionListener):
     def actionPerformed(self, event):
         # Clear the cache
         self._extender.clear_cache()
-        
-        # Log cache clearing
-        stdout = self._extender._callbacks.getStdout()
-        stdout.write("Analysis cache cleared!\n")
-        
+
         # Update cache statistics in UI
         if self._config_tab:
             self._config_tab.update_cache_stats()
@@ -638,9 +634,6 @@ class ClearSettingsListener(ActionListener):
             
             # Update UI
             config_tab.update_config_panels()
-            
-            # Log reset
-            self._extender._callbacks.getStdout().write("User settings have been reset!\n")
         except Exception as e:
             try:
                 self._extender._callbacks.getStdout().write("Error updating UI after settings reset: " + str(e) + "\n")
