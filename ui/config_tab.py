@@ -134,8 +134,8 @@ class ConfigTab:
         radio_center_panel = JPanel()
         radio_center_panel.setLayout(GridLayout(1, 3, 20, 0))
         radio_center_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
-        radio_center_panel.setMaximumSize(Dimension(550, 30))
-        radio_center_panel.setPreferredSize(Dimension(550, 30))
+        radio_center_panel.setMaximumSize(Dimension(700, 30))
+        radio_center_panel.setPreferredSize(Dimension(700, 30))
         if burp_background:
             radio_center_panel.setBackground(burp_background)
         
@@ -145,18 +145,27 @@ class ConfigTab:
         # Create OpenRouter radio
         self._openrouter_radio = JRadioButton("OpenRouter", not self._extender.get_config()["use_ollama"] and not self._extender.get_config().get("use_openai", False))
         self._openrouter_radio.setHorizontalAlignment(JRadioButton.CENTER)
+        self._openrouter_radio.setPreferredSize(Dimension(120, 25))
+        self._openrouter_radio.setMaximumSize(Dimension(120, 25))
+        self._openrouter_radio.setMinimumSize(Dimension(120, 25))
         self._openrouter_radio.addActionListener(ApiSelectionListener(self._extender, False, False))
         api_button_group.add(self._openrouter_radio)
-        
+
         # Create Ollama radio
         self._ollama_radio = JRadioButton("Ollama", self._extender.get_config()["use_ollama"])
         self._ollama_radio.setHorizontalAlignment(JRadioButton.CENTER)
+        self._ollama_radio.setPreferredSize(Dimension(100, 25))
+        self._ollama_radio.setMaximumSize(Dimension(100, 25))
+        self._ollama_radio.setMinimumSize(Dimension(100, 25))
         self._ollama_radio.addActionListener(ApiSelectionListener(self._extender, True, False))
         api_button_group.add(self._ollama_radio)
 
         # Create OpenAI-compatible radio
         self._openai_radio = JRadioButton("OpenAI-compatible", self._extender.get_config().get("use_openai", False))
         self._openai_radio.setHorizontalAlignment(JRadioButton.CENTER)
+        self._openai_radio.setPreferredSize(Dimension(140, 25))
+        self._openai_radio.setMaximumSize(Dimension(140, 25))
+        self._openai_radio.setMinimumSize(Dimension(140, 25))
         self._openai_radio.addActionListener(ApiSelectionListener(self._extender, False, True))
         api_button_group.add(self._openai_radio)
 
@@ -170,7 +179,7 @@ class ConfigTab:
         
         # Add to left panel, centered
         radio_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
-        radio_panel.setMaximumSize(Dimension(400, 30))
+        radio_panel.setMaximumSize(Dimension(500, 30))
         left_panel.add(Box.createVerticalStrut(10))
         left_panel.add(radio_panel)
         left_panel.add(Box.createVerticalStrut(20))
