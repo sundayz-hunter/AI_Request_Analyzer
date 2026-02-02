@@ -442,7 +442,7 @@ class ApiSelectionListener(ActionListener):
 
                     # Update button text if button is provided
                     if self._button:
-                        self._button.setText("Hive" if self._use_ollama else "View")
+                        self._button.setText("Hide" if self._use_ollama else "View")
             except Exception as e:
                 stdout.write("Error updating UI after API selection: " + str(e) + "\n")
 

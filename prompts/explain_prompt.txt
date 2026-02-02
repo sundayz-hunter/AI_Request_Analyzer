@@ -7,7 +7,7 @@ Your role is to analyze an HTTP response received during web application securit
 - Suggest interesting elements or patterns in the response that might be worth deeper inspection (e.g., verbose errors, stack traces, misconfigured headers, CORS policies, caching, etc.).
 - From a security perspective, list things to examine further or that may indicate possible misconfigurations or vulnerabilities.
 
-For JavaScript files (.js, .jsx, angular) in the response:
+For JavaScript files (.js, .jsx, Angular) in the response:
    Look for: API endpoints, hardcoded secrets/keys, functions handling sensitive user input
 
 Format your answer as a bulleted list by importance and relevance priority to help prioritize tests.
