@@ -73,36 +73,37 @@ class ConfigLoader:
         """Load configuration from .env file"""
         try:
             with open(self._env_path, 'r') as f:
-                env_content = f.read()
-            
-            # Parse .env file
-            self._config = self._defaults.copy()  # Start with defaults
-            
-            # Simple regex to parse key-value pairs, ignoring comments
-            pattern = re.compile(r'^([A-Za-z0-9_]+)\s*=\s*(.+)$', re.MULTILINE)
-            matches = pattern.findall(env_content)
-            
-            for key, value in matches:
-                # Skip commented lines
-                if key.strip().startswith('#'):
-                    continue
-                
-                # Convert value to appropriate type
-                try:
-                    # Try to convert to numeric value if possible
-                    if value.isdigit():
-                        self._config[key] = int(value)
-                    elif value.replace('.', '', 1).isdigit():
-                        self._config[key] = float(value)
-                    else:
+                # Parse .env file line by line
+                self._config = self._defaults.copy()  # Start with defaults
+
+                for line in f:
+                    line = line.strip()
+
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+
+                    # Split on first '=' only
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+
                         # Remove quotes if present
                         if (value.startswith('"') and value.endswith('"')) or \
                            (value.startswith("'") and value.endswith("'")):
                             value = value[1:-1]
-                        self._config[key] = value
-                except Exception:
-                    # Use the string value if conversion fails
-                    self._config[key] = value
+
+                        # Convert to appropriate type
+                        try:
+                            if value.isdigit():
+                                self._config[key] = int(value)
+                            elif value.replace('.', '', 1).isdigit():
+                                self._config[key] = float(value)
+                            else:
+                                self._config[key] = value
+                        except Exception:
+                            self._config[key] = value
 
         except Exception as e:
             self._stdout.write("Error parsing .env file: " + str(e) + "\n")
