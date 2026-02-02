@@ -97,11 +97,7 @@ class OpenRouterHandler(BaseAPIHandler):
         
         # Initial message
         update_callback("Analysis in progress...")
-        
-        # Minimal debug info
-        self._stdout.write("Sending request to OpenRouter API (streaming mode)\n")
-        self._stdout.write("Model: " + model + "\n")
-        
+
         # Convert to JSON and encode to bytes for Jython
         data = json.dumps(payload).encode('utf-8')
         
@@ -151,11 +147,8 @@ class OpenRouterHandler(BaseAPIHandler):
             # Final update
             if full_response:
                 update_callback(full_response)
-                self._stdout.write("OpenRouter analysis complete - processed {0} chunks.\n".format(chunk_count))
                 return full_response
             else:
-                # Log that no content was received
-                self._stdout.write("No content received from streaming. Trying fallback...\n")
                 update_callback("Analyzing with OpenRouter...")
                 
                 # Try fallback to non-streaming mode
@@ -167,8 +160,6 @@ class OpenRouterHandler(BaseAPIHandler):
             update_callback(error_message)
             return error_message
         except Exception as e:
-            self._stdout.write("Error processing OpenRouter request: " + str(e) + "\n")
-            
             # Check if it's a rate limit or quota error message
             error_str = str(e).lower()
             if "429" in error_str or "rate limit" in error_str or "quota" in error_str:
@@ -191,9 +182,7 @@ class OpenRouterHandler(BaseAPIHandler):
         """
         # Get the error response body if possible
         error_body = error.read() if hasattr(error, 'read') else ""
-        self._stdout.write("HTTP Error: " + str(error.code) + " - " + str(error.reason) + "\n")
-        self._stdout.write("Error body: " + error_body + "\n")
-        
+
         # Try to parse error as JSON
         try:
             error_json = json.loads(error_body)
@@ -236,8 +225,6 @@ class OpenRouterHandler(BaseAPIHandler):
             Analysis result text
         """
         try:
-            self._stdout.write("Falling back to non-streaming mode\n")
-            
             # Modify payload to disable streaming
             payload_copy = dict(payload)
             payload_copy["stream"] = False
@@ -251,8 +238,6 @@ class OpenRouterHandler(BaseAPIHandler):
             
             # Parse response
             response_data = response.read()
-            self._stdout.write("Fallback response received: " + str(len(response_data)) + " bytes\n")
-            
             response_json = json.loads(response_data)
             
             # Extract content
@@ -261,7 +246,6 @@ class OpenRouterHandler(BaseAPIHandler):
                 if "content" in message:
                     content = message["content"]
                     update_callback(content)
-                    self._stdout.write("Fallback request successful\n")
                     return content
             
             # Check for error information in the response
@@ -300,7 +284,6 @@ class OpenRouterHandler(BaseAPIHandler):
             return error_message
         
         except Exception as e:
-            self._stdout.write("Fallback request failed: " + str(e) + "\n")
             update_callback(STREAMING_FALLBACK_ERROR_MESSAGE)
             return STREAMING_FALLBACK_ERROR_MESSAGE
             
@@ -354,7 +337,6 @@ class OpenRouterHandler(BaseAPIHandler):
             # Pass models to callback
             on_complete(model_ids)
         except Exception as e:
-            self._stdout.write("Error fetching models from OpenRouter: " + str(e) + "\n")
             on_complete([], "Error: " + str(e))
 
 
@@ -416,7 +398,6 @@ class OllamaHandler(BaseAPIHandler):
         
         try:
             header_text = ""
-            self._stdout.write("Sending streaming request to Ollama\n")
             req = urllib2.Request(ollama_url, data, ollama_headers)
             response = urllib2.urlopen(req, timeout=90)
             
@@ -442,13 +423,11 @@ class OllamaHandler(BaseAPIHandler):
                                 update_callback(header_text + full_response)
                                 last_update_time = current_time
                 except Exception as e:
-                    self._stdout.write("Ollama stream chunk error: " + str(e) + "\n")
                     continue
             
             # Final update
             if full_response:
                 update_callback(header_text + full_response)
-                self._stdout.write("Ollama streaming complete - processed {0} chunks.\n".format(chunk_count))
                 return header_text + full_response
             else:
                 error_text = header_text + "No response received from Ollama."
@@ -456,7 +435,6 @@ class OllamaHandler(BaseAPIHandler):
                 return error_text
         
         except Exception as e:
-            self._stdout.write("Global Ollama streaming error: " + str(e) + "\n")
             error_text = OLLAMA_ERROR_MESSAGE.format(str(e), ollama_url)
             update_callback(error_text)
             return error_text
@@ -628,11 +606,6 @@ class OpenAIHandler(BaseAPIHandler):
         # Initial message
         update_callback("Analysis in progress...")
 
-        # Minimal debug info
-        self._stdout.write("Sending request to OpenAI-compatible API (streaming mode)\n")
-        self._stdout.write("URL: " + api_url + "\n")
-        self._stdout.write("Model: " + model + "\n")
-
         # Convert to JSON and encode to bytes for Jython
         data = json.dumps(payload).encode('utf-8')
 
@@ -643,9 +616,7 @@ class OpenAIHandler(BaseAPIHandler):
         try:
             # Make request
             req = urllib2.Request(api_url, data, headers)
-            self._stdout.write("Sending HTTP request to OpenAI-compatible API\n")
             response = urllib2.urlopen(req, timeout=120)
-            self._stdout.write("Response received, starting to read stream\n")
 
             # Character-by-character strategy for OpenAI-compatible API
             full_response = ""
@@ -659,16 +630,12 @@ class OpenAIHandler(BaseAPIHandler):
                 line_count += 1
                 line = line.strip()
 
-                if line_count <= 5:
-                    self._stdout.write("Line " + str(line_count) + ": " + str(line[:100] if len(line) > 100 else line) + "\n")
-
                 if not line:
                     continue
 
                 # Skip [DONE] marker - convert to string for comparison
                 line_str = line.decode('utf-8') if isinstance(line, bytes) else line
                 if line_str == "data: [DONE]":
-                    self._stdout.write("Received [DONE] marker\n")
                     continue
 
                 try:
@@ -704,21 +671,14 @@ class OpenAIHandler(BaseAPIHandler):
                                 update_callback(full_response)
                                 last_update_time = current_time
                 except Exception as e:
-                    self._stdout.write("OpenAI stream chunk error: " + str(e) + "\n")
                     continue
-
-            self._stdout.write("Stream complete. Total lines: " + str(line_count) + ", Content chunks: " + str(chunk_count) + "\n")
-            if is_reasoning_model:
-                self._stdout.write("Reasoning model detected - only final content was streamed\n")
 
             # Return whatever we received in the stream
             if full_response:
                 update_callback(full_response)
-                self._stdout.write("OpenAI-compatible analysis complete - " + str(len(full_response)) + " chars\n")
                 return full_response
             else:
                 # No content at all - try fallback
-                self._stdout.write("No content received from streaming. Trying fallback...\n")
                 update_callback("Analyzing with OpenAI-compatible API...")
                 return self._fallback_to_non_streaming(api_url, headers, payload, update_callback)
 
@@ -727,7 +687,6 @@ class OpenAIHandler(BaseAPIHandler):
             update_callback(error_text)
             return error_text
         except Exception as e:
-            self._stdout.write("Error processing OpenAI-compatible request: " + str(e) + "\n")
             error_text = OPENAI_ERROR_MESSAGE.format(str(e))
             update_callback(error_text)
             return error_text
@@ -767,14 +726,8 @@ class OpenAIHandler(BaseAPIHandler):
 
             # Parse response
             response_data = response.read()
-            self._stdout.write("Fallback response received: " + str(len(response_data)) + " bytes\n")
-
-            # Decode bytes to string for JSON parsing
             response_str = response_data.decode('utf-8') if isinstance(response_data, bytes) else response_data
-            self._stdout.write("Response (first 500 chars): " + response_str[:500] + "\n")
-
             response_json = json.loads(response_str)
-            self._stdout.write("JSON parsed successfully\n")
 
             # Extract content - check both 'content' and 'reasoning_content'
             if "choices" in response_json and response_json["choices"]:
@@ -783,49 +736,24 @@ class OpenAIHandler(BaseAPIHandler):
                     message = first_choice["message"]
 
                     # Try content (final answer) first, then reasoning_content (reasoning)
-                    # Prioritize final content over reasoning
                     content = None
                     if "content" in message and message["content"]:
                         content = message["content"]
-                        self._stdout.write("Using content, length: " + str(len(content)) + "\n")
                     elif "reasoning_content" in message and message["reasoning_content"]:
                         content = message["reasoning_content"]
-                        self._stdout.write("Using reasoning_content, length: " + str(len(content)) + "\n")
 
                     if content:
                         update_callback(content)
-                        self._stdout.write("Fallback request successful - content displayed\n")
                         return content
-                    else:
-                        self._stdout.write("No content found in message (content and reasoning_content are empty)\n")
-                else:
-                    self._stdout.write("No 'message' in first_choice\n")
-            else:
-                self._stdout.write("No 'choices' in response or choices is empty\n")
-                if "error" in response_json:
-                    self._stdout.write("Found 'error' in response: " + str(response_json["error"]) + "\n")
 
-            # If couldn't extract content - log what we received
-            self._stdout.write("Failed to extract content from fallback response\n")
-            self._stdout.write("Response keys: " + str(response_json.keys()) + "\n")
             update_callback(FALLBACK_ERROR_MESSAGE)
             return FALLBACK_ERROR_MESSAGE
 
         except urllib2.HTTPError as e:
             error_text = OPENAI_ERROR_MESSAGE.format(str(e))
-            self._stdout.write("HTTP Error in fallback: " + str(e) + "\n")
-            # Try to read error response
-            try:
-                error_body = e.read()
-                self._stdout.write("Error body: " + str(error_body) + "\n")
-            except:
-                pass
             update_callback(error_text)
             return error_text
 
         except Exception as e:
-            import traceback
-            self._stdout.write("Fallback request failed: " + str(e) + "\n")
-            self._stdout.write("Traceback: " + traceback.format_exc() + "\n")
             update_callback("Error: " + str(e))
             return "Error: " + str(e)

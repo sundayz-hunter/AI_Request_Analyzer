@@ -43,7 +43,6 @@ class AnalysisCache:
             if extensionsDir:
                 parentDir = os.path.dirname(extensionsDir)
                 self._cachePath = os.path.join(parentDir, "ai_analyzer_cache.json")
-                self._stdout.write("Cache location: " + self._cachePath + "\n")
 
                 # Load cache if it exists
                 if os.path.exists(self._cachePath):
@@ -52,7 +51,7 @@ class AnalysisCache:
                             cacheData = json.load(f)
                             self._analyzeCache = cacheData.get("cache", {})
                             self._cacheMetadata = cacheData.get("metadata", {})
-                            
+
                             # Add timestamps for entries without metadata (backward compatibility)
                             for key in self._analyzeCache:
                                 if key not in self._cacheMetadata:
@@ -64,9 +63,7 @@ class AnalysisCache:
                             # Recalculate statistics
                             self._cacheStats["entries"] = len(self._analyzeCache)
                             self._cacheStats["size"] = sum(meta.get("size", 0) for meta in self._cacheMetadata.values())
-                            self._stdout.write("Cache loaded from file: {0} entries, {1} bytes\n".format(
-                                self._cacheStats["entries"], self._cacheStats["size"]))
-                            
+
                             # Clean up cache based on age and size limits
                             self._clean_cache()
                     except Exception as e:
