@@ -244,16 +244,34 @@ class BaseAnalyzerTab(IMessageEditorTab, IMessageEditorController):
                 # Use the right API manager for your configuration
                 config = self._extender.get_config()
                 use_ollama = config.get("use_ollama", False)
-                
+                use_openai = config.get("use_openai", False)
+
                 # Check configuration before continuing
-                if use_ollama:
+                if use_openai:
+                    # Checks for OpenAI-compatible
+                    openai_api_url = config.get("openai_api_url", "")
+                    openai_api_key = config.get("openai_api_key", "")
+                    openai_model = config.get("openai_model", "")
+
+                    if not openai_api_url or openai_api_url.strip() == "":
+                        self._update_text_safely("Error: OpenAI-compatible API URL not configured. Please enter the URL in the AI Request Analyzer tab.")
+                        return
+
+                    if not openai_api_key or openai_api_key.strip() == "":
+                        self._update_text_safely("Error: OpenAI-compatible API key not configured. Please enter your API key in the AI Request Analyzer tab.")
+                        return
+
+                    if not openai_model or openai_model.strip() == "":
+                        self._update_text_safely("Error: OpenAI-compatible model not configured. Please enter the model name in the AI Request Analyzer tab.")
+                        return
+                elif use_ollama:
                     model = config.get("model", "")
                     ollama_url = config.get("ollama_url", "")
-                    
+
                     if not model or model == "Type your model name or fetch the list of available model":
                         self._update_text_safely("Error: No Ollama model selected. Please configure a model in the AI Request Analyzer tab.")
                         return
-                    
+
                     if not ollama_url:
                         self._update_text_safely("Error: Ollama URL not configured. Please enter the Ollama URL in the AI Request Analyzer tab.")
                         return
@@ -261,17 +279,17 @@ class BaseAnalyzerTab(IMessageEditorTab, IMessageEditorController):
                     # Checks for OpenRouter
                     api_key = config.get("api_key", "")
                     model = config.get("model", "")
-                    
+
                     if not api_key or api_key == "Enter your API Key here...":
                         self._update_text_safely("Error: OpenRouter API key not configured. Please enter your API key in the AI Request Analyzer tab.")
                         return
-                    
+
                     if not model or model == "Type your model name or fetch the list of available model":
                         self._update_text_safely("Error: OpenRouter model not selected. Please choose a model in the AI Request Analyzer tab.")
                         return
-                
+
                 # Get the API manager for the current mode
-                api_handler = self._extender.get_api_handler(use_ollama)
+                api_handler = self._extender.get_api_handler(use_ollama, use_openai)
                 
                 # Analyze the message
                 result = api_handler.analyze_message(

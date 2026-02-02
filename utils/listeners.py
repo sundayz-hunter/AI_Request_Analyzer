@@ -213,7 +213,7 @@ class FetchModelsListener(ActionListener):
             def run(self):
                 try:
                     # Get API handler from main module
-                    api_handler = self._listener._extender.get_api_handler(False)
+                    api_handler = self._listener._extender.get_api_handler(False, False)
                     
                     # Fetch models
                     def on_complete(models, error=None):
@@ -294,7 +294,7 @@ class FetchOllamaModelsListener(ActionListener):
             def run(self):
                 try:
                     # Get API handler from main module
-                    api_handler = self._listener._extender.get_api_handler(True)
+                    api_handler = self._listener._extender.get_api_handler(True, False)
                     
                     # Fetch models
                     def on_complete(models, error=None):
@@ -345,85 +345,93 @@ class FetchOllamaModelsListener(ActionListener):
 
 class ApiSelectionListener(ActionListener):
     """
-    Listener for API selection (OpenRouter vs Ollama).
+    Listener for API selection (OpenRouter vs Ollama vs OpenAI-compatible).
     """
-    
-    def __init__(self, extender, use_ollama, button=None):
+
+    def __init__(self, extender, use_ollama=False, use_openai=False, button=None):
         """
         Initialize the listener.
-        
+
         Args:
             extender: The main extender object
             use_ollama: Whether to use Ollama
+            use_openai: Whether to use OpenAI-compatible
             button: Optional button reference
         """
         self._extender = extender
         self._use_ollama = use_ollama
+        self._use_openai = use_openai
         self._button = button
-    
+
     def actionPerformed(self, event):
         # Get the old state before changing it
         old_use_ollama = self._extender.get_config().get("use_ollama", False)
-        
+        old_use_openai = self._extender.get_config().get("use_openai", False)
+
         # Only make changes if the state actually changes
-        if old_use_ollama != self._use_ollama:
+        if old_use_ollama != self._use_ollama or old_use_openai != self._use_openai:
             # Get reference to stdout for debugging
             stdout = self._extender._callbacks.getStdout()
-            
+
             # Store current model selection before switching providers
             current_model = self._extender.get_config().get("model", "")
-            
+
             # Make sure we don't store placeholder values as actual model selections
             placeholder_values = [
                 "",
                 "Type your model name or fetch the list of available model",
                 "Fetching models..."
             ]
-            
-            if self._use_ollama:  # Switching to Ollama
 
-                # Save current model as OpenRouter model if it's valid
-                if current_model and current_model not in placeholder_values:
-                    self._extender.set_config("openrouter_model", current_model)
-                
-                # Load previously saved Ollama model
+            # Save current model to the old provider
+            if old_use_openai and current_model and current_model not in placeholder_values:
+                self._extender.set_config("openai_model", current_model)
+            elif old_use_ollama and current_model and current_model not in placeholder_values:
+                self._extender.set_config("ollama_model", current_model)
+            elif not old_use_ollama and not old_use_openai and current_model and current_model not in placeholder_values:
+                self._extender.set_config("openrouter_model", current_model)
+
+            # Load model for the new provider
+            if self._use_openai:
+                openai_model = self._extender.get_config().get("openai_model", "")
+                if openai_model and openai_model not in placeholder_values:
+                    self._extender._config["model"] = openai_model
+                    self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", openai_model)
+                else:
+                    self._extender._config["model"] = ""
+                    self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", "")
+            elif self._use_ollama:
                 ollama_model = self._extender.get_config().get("ollama_model", "")
                 if ollama_model and ollama_model not in placeholder_values:
-                    # Store the model directly in config to avoid side effects
                     self._extender._config["model"] = ollama_model
                     self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", ollama_model)
                 else:
-                    # Reset active model if no Ollama model was saved
                     self._extender._config["model"] = ""
                     self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", "")
-            else:  # Switching to OpenRouter
-
-                # Save current model as Ollama model if it's valid
-                if current_model and current_model not in placeholder_values:
-                    self._extender.set_config("ollama_model", current_model)
-                
-                # Load previously saved OpenRouter model
+            else:
                 openrouter_model = self._extender.get_config().get("openrouter_model", "")
                 if openrouter_model and openrouter_model not in placeholder_values:
-                    # Store the model directly in config to avoid side effects
                     self._extender._config["model"] = openrouter_model
                     self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", openrouter_model)
                 else:
-                    # Reset active model if no OpenRouter model was saved
                     self._extender._config["model"] = ""
                     self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", "")
-            
-            # Update use_ollama config AFTER handling model switching
+
+            # Update provider flags AFTER handling model switching
             self._extender.set_config("use_ollama", self._use_ollama)
-            
+            self._extender.set_config("use_openai", self._use_openai)
+
             # Make sure the model-specific settings are correctly synchronized
-            if self._use_ollama:
+            if self._use_openai:
+                openai_model = self._extender.get_config().get("openai_model", "")
+                self._extender._callbacks.saveExtensionSetting("ai_analyzer_openai_model", openai_model)
+            elif self._use_ollama:
                 ollama_model = self._extender.get_config().get("ollama_model", "")
                 self._extender._callbacks.saveExtensionSetting("ai_analyzer_ollama_model", ollama_model)
             else:
                 openrouter_model = self._extender.get_config().get("openrouter_model", "")
                 self._extender._callbacks.saveExtensionSetting("ai_analyzer_openrouter_model", openrouter_model)
-            
+
             # Update configuration panels
             try:
                 # Get the ConfigTab
@@ -431,7 +439,7 @@ class ApiSelectionListener(ActionListener):
                 # Update the interface
                 if config_tab:
                     config_tab.update_config_panels()
-                    
+
                     # Update button text if button is provided
                     if self._button:
                         self._button.setText("Hive" if self._use_ollama else "View")
@@ -560,30 +568,40 @@ class ClearSettingsListener(ActionListener):
         self._extender = extender
     
     def actionPerformed(self, event):
-        # Preserve current provider selection (Ollama or OpenRouter)
+        # Preserve current provider selection
         current_use_ollama = self._extender._config.get("use_ollama", False)
-        
+        current_use_openai = self._extender._config.get("use_openai", False)
+
         # Reset all settings
         self._extender._callbacks.saveExtensionSetting("ai_analyzer_api_key", "")
         self._extender._callbacks.saveExtensionSetting("ai_analyzer_model", "")
         self._extender._callbacks.saveExtensionSetting("ai_analyzer_ollama_model", "")
         self._extender._callbacks.saveExtensionSetting("ai_analyzer_openrouter_model", "")
-        self._extender._callbacks.saveExtensionSetting("ai_analyzer_ollama_url", 
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_ollama_url",
                                                        "http://localhost:11434/api/generate")
-        
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_openai_api_url", "")
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_openai_api_key", "")
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_openai_model", "")
+
         # Keep the provider selection
-        self._extender._callbacks.saveExtensionSetting("ai_analyzer_use_ollama", 
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_use_ollama",
                                                       "true" if current_use_ollama else "False")
-        
+        self._extender._callbacks.saveExtensionSetting("ai_analyzer_use_openai",
+                                                      "true" if current_use_openai else "False")
+
         # Reset the config
         self._extender._config = {
             "api_key": "",
             "model": "",
             "use_ollama": current_use_ollama,
+            "use_openai": current_use_openai,
             "analyze_automatically": True,
             "ollama_url": "http://localhost:11434/api/generate",
             "ollama_model": "",
             "openrouter_model": "",
+            "openai_api_url": "",
+            "openai_api_key": "",
+            "openai_model": "",
             "suggest_prompt": self._extender._config.get("suggest_prompt", ""),
             "explain_prompt": self._extender._config.get("explain_prompt", "")
         }
@@ -620,12 +638,28 @@ class ClearSettingsListener(ActionListener):
             # Reset Ollama URL field and visibility state
             if hasattr(config_tab, "_ollama_url_field") and config_tab._ollama_url_field:
                 config_tab._ollama_url_field.setText("http://localhost:11434/api/generate")
-                # Pour Ollama URL, on passe en mode visible après réinitialisation
+                # For Ollama URL, switch to visible mode after reset
                 config_tab._is_ollama_url_hidden = False
-                
+
                 # Force button text to "Hide" (visible mode)
                 if hasattr(config_tab, "_toggle_ollama_url_button"):
                     config_tab._toggle_ollama_url_button.setText("Hide")
+
+            # Reset OpenAI-compatible fields
+            if hasattr(config_tab, "_openai_url_field") and config_tab._openai_url_field:
+                config_tab._openai_url_field.setText("https://api.openai.com/v1/chat/completions")
+                config_tab._is_openai_url_hidden = False
+                if hasattr(config_tab, "_toggle_openai_url_button"):
+                    config_tab._toggle_openai_url_button.setText("View")
+
+            if hasattr(config_tab, "_openai_api_key_field") and config_tab._openai_api_key_field:
+                config_tab._openai_api_key_field.setText("Enter your API Key here...")
+                config_tab._is_openai_api_key_hidden = False
+                if hasattr(config_tab, "_toggle_openai_api_key_button"):
+                    config_tab._toggle_openai_api_key_button.setText("View")
+
+            if hasattr(config_tab, "_openai_model_field") and config_tab._openai_model_field:
+                config_tab._openai_model_field.setText("Enter your model name (e.g., gpt-4)")
             
             # Update UI
             config_tab.update_config_panels()
@@ -656,3 +690,84 @@ class ReloadAnalysisListener(ActionListener):
     def actionPerformed(self, event):
         # Trigger analysis
         self._tab.analyze()
+
+
+class ToggleOpenAIUrlVisibilityListener(ActionListener):
+    """
+    Listener for toggling OpenAI URL visibility.
+    """
+
+    def __init__(self, config_tab):
+        """
+        Initialize the listener.
+
+        Args:
+            config_tab: The configuration tab
+        """
+        self._config_tab = config_tab
+
+    def actionPerformed(self, event):
+        # Toggle visibility state
+        self._config_tab._is_openai_url_hidden = not self._config_tab._is_openai_url_hidden
+
+        # Get the actual URL from config
+        actual_url = self._config_tab._extender.get_config().get("openai_api_url", "")
+        placeholder = "https://api.openai.com/v1/chat/completions"
+
+        # If no URL or placeholder, do nothing
+        if not actual_url or actual_url == placeholder:
+            return
+
+        # Update display based on state
+        if self._config_tab._is_openai_url_hidden:
+            # Mask the URL
+            self._config_tab._openai_url_field.setText('*' * len(actual_url))
+            # Update button text
+            self._config_tab._toggle_openai_url_button.setText("View")
+        else:
+            # Show the URL
+            self._config_tab._openai_url_field.setText(actual_url)
+            # Update button text
+            self._config_tab._toggle_openai_url_button.setText("Hide")
+
+        # Force UI update
+        self._config_tab._openai_url_field.revalidate()
+        self._config_tab._openai_url_field.repaint()
+        self._config_tab._toggle_openai_url_button.revalidate()
+        self._config_tab._toggle_openai_url_button.repaint()
+
+
+class ToggleOpenAIKeyVisibilityListener(ActionListener):
+    """
+    Listener for toggling OpenAI API key visibility.
+    """
+
+    def __init__(self, config_tab):
+        """
+        Initialize the listener.
+
+        Args:
+            config_tab: The configuration tab
+        """
+        self._config_tab = config_tab
+
+    def actionPerformed(self, event):
+        # Toggle state
+        current_button_text = self._config_tab._toggle_openai_api_key_button.getText()
+        actual_key = self._config_tab._extender.get_config().get("openai_api_key", "")
+        placeholder = "Enter your API Key here..."
+
+        # Toggle state
+        self._config_tab._is_openai_api_key_hidden = not self._config_tab._is_openai_api_key_hidden
+
+        # Update UI based on new state
+        if self._config_tab._is_openai_api_key_hidden:
+            # If hiding, change to "View" and mask the key
+            self._config_tab._toggle_openai_api_key_button.setText("View")
+            if actual_key and actual_key != placeholder:
+                self._config_tab._openai_api_key_field.setText('*' * len(actual_key))
+        else:
+            # If showing, change to "Hide" and show the key
+            self._config_tab._toggle_openai_api_key_button.setText("Hide")
+            if actual_key and actual_key != placeholder:
+                self._config_tab._openai_api_key_field.setText(actual_key)

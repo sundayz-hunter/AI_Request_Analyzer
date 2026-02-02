@@ -12,6 +12,7 @@ from utils.listeners import FilterKeyListener, ModelSelectionListener, Placehold
 from utils.listeners import ClearCacheListener, ClearSettingsListener
 from utils.listeners import FetchModelsListener, FetchOllamaModelsListener
 from utils.listeners import TogglePasswordVisibilityListener, ToggleOllamaUrlVisibilityListener
+from utils.listeners import ToggleOpenAIUrlVisibilityListener, ToggleOpenAIKeyVisibilityListener
 
 class ConfigTab:
     """
@@ -31,6 +32,8 @@ class ConfigTab:
         # UI state tracking
         self._is_api_key_hidden = True
         self._is_ollama_url_hidden = True
+        self._is_openai_url_hidden = True
+        self._is_openai_api_key_hidden = True
         
         # Create main panel
         self._panel = JPanel(BorderLayout(20, 20))
@@ -129,10 +132,10 @@ class ConfigTab:
         
         # Center panel for radio buttons with spacing
         radio_center_panel = JPanel()
-        radio_center_panel.setLayout(GridLayout(1, 2, 20, 0))
+        radio_center_panel.setLayout(GridLayout(1, 3, 20, 0))
         radio_center_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
-        radio_center_panel.setMaximumSize(Dimension(400, 30))
-        radio_center_panel.setPreferredSize(Dimension(400, 30))
+        radio_center_panel.setMaximumSize(Dimension(550, 30))
+        radio_center_panel.setPreferredSize(Dimension(550, 30))
         if burp_background:
             radio_center_panel.setBackground(burp_background)
         
@@ -140,20 +143,27 @@ class ConfigTab:
         api_button_group = ButtonGroup()
         
         # Create OpenRouter radio
-        self._openrouter_radio = JRadioButton("OpenRouter", not self._extender.get_config()["use_ollama"])
+        self._openrouter_radio = JRadioButton("OpenRouter", not self._extender.get_config()["use_ollama"] and not self._extender.get_config().get("use_openai", False))
         self._openrouter_radio.setHorizontalAlignment(JRadioButton.CENTER)
-        self._openrouter_radio.addActionListener(ApiSelectionListener(self._extender, False))
+        self._openrouter_radio.addActionListener(ApiSelectionListener(self._extender, False, False))
         api_button_group.add(self._openrouter_radio)
         
         # Create Ollama radio
         self._ollama_radio = JRadioButton("Ollama", self._extender.get_config()["use_ollama"])
         self._ollama_radio.setHorizontalAlignment(JRadioButton.CENTER)
-        self._ollama_radio.addActionListener(ApiSelectionListener(self._extender, True))
+        self._ollama_radio.addActionListener(ApiSelectionListener(self._extender, True, False))
         api_button_group.add(self._ollama_radio)
-        
+
+        # Create OpenAI-compatible radio
+        self._openai_radio = JRadioButton("OpenAI-compatible", self._extender.get_config().get("use_openai", False))
+        self._openai_radio.setHorizontalAlignment(JRadioButton.CENTER)
+        self._openai_radio.addActionListener(ApiSelectionListener(self._extender, False, True))
+        api_button_group.add(self._openai_radio)
+
         # Add radios to panel
         radio_center_panel.add(self._openrouter_radio)
         radio_center_panel.add(self._ollama_radio)
+        radio_center_panel.add(self._openai_radio)
         
         # Add a glue on both sides to center the radio buttons
         radio_panel.add(radio_center_panel, BorderLayout.CENTER)
@@ -516,6 +526,222 @@ class ConfigTab:
         ollama_config_panel.add(ollama_model_panel)
         
         self._config_panels.add(ollama_config_panel, "Ollama")
+
+        # OpenAI-compatible config panel
+        openai_config_panel = JPanel()
+        openai_config_panel.setLayout(BoxLayout(openai_config_panel, BoxLayout.Y_AXIS))
+        openai_config_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        if burp_background:
+            openai_config_panel.setBackground(burp_background)
+
+        # URL field - identical style to OpenRouter and Ollama
+        openai_url_panel = JPanel()
+        openai_url_panel.setLayout(BoxLayout(openai_url_panel, BoxLayout.X_AXIS))
+        openai_url_panel.setMaximumSize(Dimension(600, 30))
+        openai_url_panel.setPreferredSize(Dimension(600, 30))
+        openai_url_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        if burp_background:
+            openai_url_panel.setBackground(burp_background)
+
+        openai_url_panel.add(Box.createHorizontalGlue())
+
+        # Add space on the left equivalent to the button for perfect centering
+        openai_url_panel.add(Box.createHorizontalStrut(32))
+
+        # Container for URL - just the field (no button)
+        openai_url_container = JPanel()
+        openai_url_container.setLayout(BoxLayout(openai_url_container, BoxLayout.X_AXIS))
+        openai_url_container.setMaximumSize(Dimension(530, 25))  # Same size as model+fetch
+        openai_url_container.setPreferredSize(Dimension(530, 25))
+        if burp_background:
+            openai_url_container.setBackground(burp_background)
+
+        # URL field with border
+        saved_openai_url = self._extender.get_config().get("openai_api_url", "")
+        openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+        self._openai_url_field = JTextField(saved_openai_url or openai_url_placeholder, 60)
+        self._openai_url_field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY),
+            BorderFactory.createEmptyBorder(2, 5, 2, 5)
+        ))
+        self._openai_url_field.setPreferredSize(Dimension(530, 25))  # Same size as model+fetch
+        self._openai_url_field.setMaximumSize(Dimension(530, 25))
+        self._openai_url_field.setMinimumSize(Dimension(530, 25))
+        self._openai_url_field.addFocusListener(
+            PlaceholderFocusListener(self._extender, "openai_api_url", self._openai_url_field, openai_url_placeholder))
+
+        # Add only the text field to the container
+        openai_url_container.add(self._openai_url_field)
+
+        # Add the centered container
+        openai_url_panel.add(openai_url_container)
+
+        # Add a small space between the field and button
+        openai_url_panel.add(Box.createHorizontalStrut(2))
+
+        # Add the button outside the centered container
+        # Eye button for toggling URL visibility
+        self._toggle_openai_url_button = JButton("View")
+        self._toggle_openai_url_button.putClientProperty("hideActionText", Boolean.TRUE)
+        self._toggle_openai_url_button.setBorderPainted(False)  # Remove border
+        self._toggle_openai_url_button.setContentAreaFilled(False)  # Remove background
+        self._toggle_openai_url_button.setFocusPainted(False)
+        self._toggle_openai_url_button.setForeground(Color.GRAY)  # Gray text
+        self._toggle_openai_url_button.setPreferredSize(Dimension(40, 25))
+        self._toggle_openai_url_button.setMaximumSize(Dimension(40, 25))
+        self._toggle_openai_url_button.setMinimumSize(Dimension(40, 25))
+        self._toggle_openai_url_button.setMargin(Insets(0, 0, 0, 0))  # Zero margin to reduce space
+        self._toggle_openai_url_button.setToolTipText("Toggle URL visibility")
+        self._toggle_openai_url_button.addActionListener(ToggleOpenAIUrlVisibilityListener(self))
+
+        # Initially mask the OpenAI URL if it's not empty and not a placeholder
+        openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+        if saved_openai_url and saved_openai_url != openai_url_placeholder:
+            masked_url = '*' * len(saved_openai_url)
+            self._openai_url_field.setText(masked_url)
+
+        # Add the button outside the centered container
+        openai_url_panel.add(self._toggle_openai_url_button)
+
+        openai_url_panel.add(Box.createHorizontalGlue())
+
+        openai_url_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        openai_config_panel.add(openai_url_panel)
+        openai_config_panel.add(Box.createVerticalStrut(10))
+
+        # API Key field with placeholder - identical style to OpenRouter
+        openai_api_key_panel = JPanel()
+        openai_api_key_panel.setLayout(BoxLayout(openai_api_key_panel, BoxLayout.X_AXIS))
+        openai_api_key_panel.setMaximumSize(Dimension(600, 30))
+        openai_api_key_panel.setPreferredSize(Dimension(600, 30))
+        openai_api_key_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        if burp_background:
+            openai_api_key_panel.setBackground(burp_background)
+        openai_api_key_panel.add(Box.createHorizontalGlue())
+
+        # Add space on the left equivalent to the button for perfect centering
+        openai_api_key_panel.add(Box.createHorizontalStrut(32))
+
+        # API Key container panel WITHOUT eye button - just the field
+        openai_api_key_container_panel = JPanel()
+        openai_api_key_container_panel.setLayout(BoxLayout(openai_api_key_container_panel, BoxLayout.X_AXIS))
+        openai_api_key_container_panel.setMaximumSize(Dimension(530, 25))  # Same size as model field
+        openai_api_key_container_panel.setPreferredSize(Dimension(530, 25))
+        if burp_background:
+            openai_api_key_container_panel.setBackground(burp_background)
+
+        # API Key field
+        saved_openai_key = self._extender.get_config().get("openai_api_key", "")
+        openai_key_placeholder = "Enter your API Key here..."
+        self._openai_api_key_field = JTextField(saved_openai_key or openai_key_placeholder, 100)
+        self._openai_api_key_field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY),
+            BorderFactory.createEmptyBorder(2, 5, 2, 5)
+        ))
+        self._openai_api_key_field.setPreferredSize(Dimension(530, 25))  # Same size as model field
+        self._openai_api_key_field.setMaximumSize(Dimension(530, 25))
+        self._openai_api_key_field.setMinimumSize(Dimension(530, 25))
+
+        # Add focus listener for saving config with placeholder
+        self._openai_api_key_field.addFocusListener(
+            PlaceholderFocusListener(self._extender, "openai_api_key", self._openai_api_key_field, openai_key_placeholder))
+
+        # Add the text field first
+        openai_api_key_container_panel.add(self._openai_api_key_field)
+
+        # Add the centered container
+        openai_api_key_panel.add(openai_api_key_container_panel)
+
+        # Add a small space between the field and button
+        openai_api_key_panel.add(Box.createHorizontalStrut(2))
+
+        # Add the button outside the centered container
+        # Eye button for toggling API key visibility
+        self._toggle_openai_api_key_button = JButton("View")
+        self._toggle_openai_api_key_button.putClientProperty("hideActionText", Boolean.TRUE)
+        self._toggle_openai_api_key_button.setBorderPainted(False)  # Remove border
+        self._toggle_openai_api_key_button.setContentAreaFilled(False)  # Remove background
+        self._toggle_openai_api_key_button.setFocusPainted(False)
+        self._toggle_openai_api_key_button.setForeground(Color.GRAY)  # Gray text
+        self._toggle_openai_api_key_button.setPreferredSize(Dimension(40, 25))
+        self._toggle_openai_api_key_button.setMaximumSize(Dimension(40, 25))
+        self._toggle_openai_api_key_button.setMinimumSize(Dimension(40, 25))
+        self._toggle_openai_api_key_button.setMargin(Insets(0, 0, 0, 0))  # Zero margin to reduce space
+        self._toggle_openai_api_key_button.setToolTipText("Toggle API key visibility")
+        self._toggle_openai_api_key_button.addActionListener(ToggleOpenAIKeyVisibilityListener(self))
+
+        # Initially mask the API key if it's not empty
+        if saved_openai_key:
+            masked_key = '*' * len(saved_openai_key)
+            self._openai_api_key_field.setText(masked_key)
+            self._toggle_openai_api_key_button.setText("View")  # Explicitly force initial text
+
+        # Add the button outside the centered container
+        openai_api_key_panel.add(self._toggle_openai_api_key_button)
+
+        openai_api_key_panel.add(Box.createHorizontalGlue())
+        openai_api_key_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        openai_config_panel.add(openai_api_key_panel)
+        openai_config_panel.add(Box.createVerticalStrut(10))
+
+        # Model name field - no fetch button
+        openai_model_panel = JPanel()
+        openai_model_panel.setLayout(BoxLayout(openai_model_panel, BoxLayout.X_AXIS))
+        openai_model_panel.setMaximumSize(Dimension(600, 30))
+        openai_model_panel.setPreferredSize(Dimension(600, 30))
+        openai_model_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        if burp_background:
+            openai_model_panel.setBackground(burp_background)
+
+        openai_model_panel.add(Box.createHorizontalGlue())
+
+        # Container for model field with exact same size as URL field
+        openai_model_container = JPanel()
+        openai_model_container.setLayout(BoxLayout(openai_model_container, BoxLayout.X_AXIS))
+        openai_model_container.setMaximumSize(Dimension(530, 25))  # Same size as URL field
+        openai_model_container.setPreferredSize(Dimension(530, 25))
+        if burp_background:
+            openai_model_container.setBackground(burp_background)
+
+        # Model name text field
+        saved_openai_model = self._extender.get_config().get("openai_model", "")
+        openai_model_placeholder = "Enter your model name (e.g., gpt-4)"
+        self._openai_model_field = JTextField(saved_openai_model or openai_model_placeholder, 60)
+        self._openai_model_field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY),
+            BorderFactory.createEmptyBorder(2, 5, 2, 5)
+        ))
+        self._openai_model_field.setPreferredSize(Dimension(530, 25))  # Same size as URL field
+        self._openai_model_field.setMaximumSize(Dimension(530, 25))
+        self._openai_model_field.setMinimumSize(Dimension(530, 25))
+        self._openai_model_field.addFocusListener(
+            PlaceholderFocusListener(self._extender, "openai_model", self._openai_model_field, openai_model_placeholder))
+
+        # Add the model field to the container
+        openai_model_container.add(self._openai_model_field)
+
+        # Add the container to the panel
+        openai_model_panel.add(openai_model_container)
+
+        # Add a placeholder view button (invisible) for alignment
+        view_button_openai = JButton("View")
+        view_button_openai.setForeground(Color.GRAY)
+        view_button_openai.setBorderPainted(False)  # Remove border
+        view_button_openai.setContentAreaFilled(False)  # Remove fill
+        view_button_openai.setFocusPainted(False)
+        view_button_openai.setPreferredSize(Dimension(40, 25))
+        view_button_openai.setMaximumSize(Dimension(40, 25))
+        view_button_openai.setMinimumSize(Dimension(40, 25))
+        view_button_openai.setVisible(False)  # Make button invisible
+        openai_model_panel.add(Box.createHorizontalStrut(2))
+        openai_model_panel.add(view_button_openai)
+
+        openai_model_panel.add(Box.createHorizontalGlue())
+
+        openai_model_panel.setAlignmentX(Component.CENTER_ALIGNMENT)
+        openai_config_panel.add(openai_model_panel)
+
+        self._config_panels.add(openai_config_panel, "OpenAI")
         
         self._config_panels.setAlignmentX(Component.CENTER_ALIGNMENT)
         left_panel.add(self._config_panels)
@@ -786,136 +1012,202 @@ class ConfigTab:
         try:
             stdout = self._extender._callbacks.getStdout()
             layout = self._config_panels.getLayout()
-            
+
             if isinstance(layout, CardLayout):
-                use_ollama = self._extender.get_config()["use_ollama"]
-                
-                if use_ollama:
+                use_ollama = self._extender.get_config().get("use_ollama", False)
+                use_openai = self._extender.get_config().get("use_openai", False)
+
+                if use_openai:
+                    layout.show(self._config_panels, "OpenAI")
+                    self._openai_radio.setSelected(True)
+
+                    # Ensure button text is correct for OpenAI-compatible
+                    openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+                    if hasattr(self, "_toggle_openai_url_button"):
+                        openai_url = self._extender.get_config().get("openai_api_url", "")
+                        if openai_url and openai_url != openai_url_placeholder:
+                            if self._is_openai_url_hidden:
+                                self._toggle_openai_url_button.setText("View")
+                                self._openai_url_field.setText('*' * len(openai_url))
+                            else:
+                                self._toggle_openai_url_button.setText("Hide")
+                                self._openai_url_field.setText(openai_url)
+                        else:
+                            self._toggle_openai_url_button.setText("View")
+                        self._toggle_openai_url_button.setContentAreaFilled(False)
+                        self._toggle_openai_url_button.setBorderPainted(False)
+                        self._toggle_openai_url_button.setForeground(Color.GRAY)
+
+                    openai_key_placeholder = "Enter your API Key here..."
+                    if hasattr(self, "_toggle_openai_api_key_button"):
+                        openai_key = self._extender.get_config().get("openai_api_key", "")
+                        if openai_key and openai_key != openai_key_placeholder:
+                            if self._is_openai_api_key_hidden:
+                                self._toggle_openai_api_key_button.setText("View")
+                                self._openai_api_key_field.setText('*' * len(openai_key))
+                            else:
+                                self._toggle_openai_api_key_button.setText("Hide")
+                                self._openai_api_key_field.setText(openai_key)
+                        else:
+                            self._toggle_openai_api_key_button.setText("View")
+                        self._toggle_openai_api_key_button.setContentAreaFilled(False)
+                        self._toggle_openai_api_key_button.setBorderPainted(False)
+                        self._toggle_openai_api_key_button.setForeground(Color.GRAY)
+
+                elif use_ollama:
                     layout.show(self._config_panels, "Ollama")
                     self._ollama_radio.setSelected(True)
-                    
+
                     # Ensure button text is correct for Ollama
                     if hasattr(self, "_toggle_ollama_url_button"):
-                        # Get the actual URL value
                         ollama_url = self._extender.get_config()["ollama_url"]
                         if ollama_url and ollama_url != "":
-                            # If we have a URL value, sync button text with hidden state
                             if self._is_ollama_url_hidden:
                                 self._toggle_ollama_url_button.setText("View")
-                                # Ensure URL is masked
                                 self._ollama_url_field.setText('*' * len(ollama_url))
                             else:
                                 self._toggle_ollama_url_button.setText("Hide")
-                                # Ensure URL is visible
                                 self._ollama_url_field.setText(ollama_url)
-                        # Ensure button style is correct
                         self._toggle_ollama_url_button.setContentAreaFilled(False)
                         self._toggle_ollama_url_button.setBorderPainted(False)
                         self._toggle_ollama_url_button.setForeground(Color.GRAY)
                 else:
                     layout.show(self._config_panels, "OpenRouter")
                     self._openrouter_radio.setSelected(True)
-                    
+
                     # Ensure button text is correct for OpenRouter
                     if hasattr(self, "_toggle_api_key_button"):
                         actual_key = self._extender.get_config()["api_key"]
                         if actual_key and actual_key != "Enter your API Key here...":
-                            # If we have an actual key, sync button text with hidden state
                             if self._is_api_key_hidden:
                                 self._toggle_api_key_button.setText("View")
-                                # Ensure key is masked
                                 self._api_key_field.setText('*' * len(actual_key))
                             else:
                                 self._toggle_api_key_button.setText("Hide")
-                                # Ensure key is visible
                                 self._api_key_field.setText(actual_key)
                         else:
-                            # No key or placeholder - button should be "View" and nothing to mask
                             self._toggle_api_key_button.setText("View")
-                        # Ensure button style is correct
                         self._toggle_api_key_button.setContentAreaFilled(False)
                         self._toggle_api_key_button.setBorderPainted(False)
                         self._toggle_api_key_button.setForeground(Color.GRAY)
-                
+
                 # Force UI update for the panels
                 self._config_panels.revalidate()
                 self._config_panels.repaint()
-                
-                # Force update of the button text based on current state
-                if not use_ollama and hasattr(self, "_toggle_api_key_button"):
-                    # Make sure the button text matches the visibility state
-                    if self._is_api_key_hidden:
-                        self._toggle_api_key_button.setText("View")
-                    else:
-                        self._toggle_api_key_button.setText("Hide")
-                
+
                 # Update models in ComboBoxes based on current mode
-                if use_ollama:
-                    # Reset OpenRouter ComboBox to avoid keeping an Ollama model
-                    self._model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(False)))
+                if use_openai:
+                    # Reset both OpenRouter and Ollama ComboBoxes
+                    self._model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(False, False)))
                     editor_component = self._model_combo.getEditor().getEditorComponent()
                     if isinstance(editor_component, JTextField):
                         editor_component.setText("Type your model name or fetch the list of available model")
-                    
-                    # In Ollama mode, update Ollama combobox
+
+                    self._ollama_model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(True, False)))
+                    editor_component = self._ollama_model_combo.getEditor().getEditorComponent()
+                    if isinstance(editor_component, JTextField):
+                        editor_component.setText("Type your model name or fetch the list of available model")
+
+                    # Update OpenAI model field with saved value
+                    openai_model = self._extender.get_config().get("openai_model", "")
+                    openai_model_placeholder = "Enter your model name (e.g., gpt-4)"
+                    if hasattr(self, "_openai_model_field"):
+                        if openai_model and openai_model != openai_model_placeholder:
+                            self._openai_model_field.setText(openai_model)
+                        else:
+                            self._openai_model_field.setText(openai_model_placeholder)
+
+                    # Update OpenAI URL field with saved value
+                    openai_url = self._extender.get_config().get("openai_api_url", "")
+                    openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+                    if hasattr(self, "_openai_url_field"):
+                        if openai_url and openai_url != openai_url_placeholder:
+                            # URL is configured, show it (masked if hidden)
+                            if self._is_openai_url_hidden:
+                                self._openai_url_field.setText('*' * len(openai_url))
+                            else:
+                                self._openai_url_field.setText(openai_url)
+                        else:
+                            self._openai_url_field.setText(openai_url_placeholder)
+
+                    # Update OpenAI API key field with saved value
+                    openai_key = self._extender.get_config().get("openai_api_key", "")
+                    openai_key_placeholder = "Enter your API Key here..."
+                    if hasattr(self, "_openai_api_key_field"):
+                        if openai_key and openai_key != openai_key_placeholder:
+                            # Key is configured, show it (masked if hidden)
+                            if self._is_openai_api_key_hidden:
+                                self._openai_api_key_field.setText('*' * len(openai_key))
+                            else:
+                                self._openai_api_key_field.setText(openai_key)
+                        else:
+                            self._openai_api_key_field.setText(openai_key_placeholder)
+
+                elif use_ollama:
+                    # Reset OpenRouter ComboBox
+                    self._model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(False, False)))
+                    editor_component = self._model_combo.getEditor().getEditorComponent()
+                    if isinstance(editor_component, JTextField):
+                        editor_component.setText("Type your model name or fetch the list of available model")
+
+                    # Update Ollama combobox
                     ollama_model = self._extender.get_config().get("ollama_model", "")
-                    
+
                     if ollama_model and ollama_model != "Type your model name or fetch the list of available model":
-                        # Check if model is in the list
                         model_found = False
                         for i in range(self._ollama_model_combo.getItemCount()):
                             if self._ollama_model_combo.getItemAt(i) == ollama_model:
                                 model_found = True
                                 break
-                        # If model is already in the list, select it
                         if model_found:
                             self._ollama_model_combo.setSelectedItem(ollama_model)
                         else:
-                            model = DefaultComboBoxModel(self._extender.get_available_models(True))
+                            model = DefaultComboBoxModel(self._extender.get_available_models(True, False))
                             model.insertElementAt(ollama_model, 0)
                             self._ollama_model_combo.setModel(model)
                             self._ollama_model_combo.setSelectedItem(ollama_model)
                     else:
-                        # If no model, show placeholder
                         editor_component = self._ollama_model_combo.getEditor().getEditorComponent()
                         if isinstance(editor_component, JTextField):
                             editor_component.setText("Type your model name or fetch the list of available model")
+
                 else:
-                    # Reset Ollama ComboBox to avoid keeping an OpenRouter model
-                    self._ollama_model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(True)))
+                    # Reset Ollama ComboBox
+                    self._ollama_model_combo.setModel(DefaultComboBoxModel(self._extender.get_available_models(True, False)))
                     editor_component = self._ollama_model_combo.getEditor().getEditorComponent()
                     if isinstance(editor_component, JTextField):
                         editor_component.setText("Type your model name or fetch the list of available model")
-                    
-                    # In OpenRouter mode, update OpenRouter combobox
+
+                    # Update OpenRouter combobox
                     openrouter_model = self._extender.get_config().get("openrouter_model", "")
-                    
+
                     if openrouter_model and openrouter_model != "Type your model name or fetch the list of available model":
-                        # Check if model is in the list
                         model_found = False
                         for i in range(self._model_combo.getItemCount()):
                             if self._model_combo.getItemAt(i) == openrouter_model:
                                 model_found = True
                                 break
-                        # If model is already in the list, select it
                         if model_found:
                             self._model_combo.setSelectedItem(openrouter_model)
                         else:
-                            model = DefaultComboBoxModel(self._extender.get_available_models(False))
+                            model = DefaultComboBoxModel(self._extender.get_available_models(False, False))
                             model.insertElementAt(openrouter_model, 0)
                             self._model_combo.setModel(model)
                             self._model_combo.setSelectedItem(openrouter_model)
                     else:
-                        # If no model, show placeholder
                         editor_component = self._model_combo.getEditor().getEditorComponent()
                         if isinstance(editor_component, JTextField):
                             editor_component.setText("Type your model name or fetch the list of available model")
-                
+
                 # Force visual update of buttons
                 if hasattr(self, "_toggle_api_key_button"):
                     self._toggle_api_key_button.repaint()
                 if hasattr(self, "_toggle_ollama_url_button"):
                     self._toggle_ollama_url_button.repaint()
+                if hasattr(self, "_toggle_openai_url_button"):
+                    self._toggle_openai_url_button.repaint()
+                if hasattr(self, "_toggle_openai_api_key_button"):
+                    self._toggle_openai_api_key_button.repaint()
         except Exception as e:
             # Log the error if available
             try:
