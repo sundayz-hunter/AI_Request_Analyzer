@@ -6,6 +6,7 @@ import os
 
 # Import core modules
 from core.cache import AnalysisCache
+from core.config_loader import ConfigLoader
 from core.models import ModelManager
 from core.api_handlers import OpenRouterHandler, OllamaHandler, OpenAIHandler
 from utils.helpers import truncate_message
@@ -31,21 +32,39 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         
         stdout = callbacks.getStdout()
         stdout.write("AI Request Analyzer initializing...\n")
-        
-        # Load saved settings
-        saved_api_key = callbacks.loadExtensionSetting("ai_analyzer_api_key") or ""
-        saved_ollama_model = callbacks.loadExtensionSetting("ai_analyzer_ollama_model") or ""
-        saved_openrouter_model = callbacks.loadExtensionSetting("ai_analyzer_openrouter_model") or ""
-        saved_ollama_url = callbacks.loadExtensionSetting(
-            "ai_analyzer_ollama_url") or "http://localhost:11434/api/generate"
+
+        # Load .env file for default values
+        config_loader = ConfigLoader(callbacks)
+
+        # Load saved settings from Burp (priority: Burp settings > .env file > defaults)
+        saved_api_key = callbacks.loadExtensionSetting("ai_analyzer_api_key") or config_loader.get("OPENROUTER_API_KEY", "")
+        saved_openrouter_model = callbacks.loadExtensionSetting("ai_analyzer_openrouter_model") or config_loader.get("OPENROUTER_DEFAULT_MODEL", "")
+
+        saved_ollama_url = callbacks.loadExtensionSetting("ai_analyzer_ollama_url") or config_loader.get("OLLAMA_API_URL", "http://localhost:11434/api/generate")
+        saved_ollama_model = callbacks.loadExtensionSetting("ai_analyzer_ollama_model") or config_loader.get("OLLAMA_DEFAULT_MODEL", "")
         saved_use_ollama = callbacks.loadExtensionSetting("ai_analyzer_use_ollama") == "true"
 
-        # Load OpenAI-compatible settings
-        saved_openai_api_url = callbacks.loadExtensionSetting("ai_analyzer_openai_api_url") or ""
-        saved_openai_api_key = callbacks.loadExtensionSetting("ai_analyzer_openai_api_key") or ""
-        saved_openai_model = callbacks.loadExtensionSetting("ai_analyzer_openai_model") or ""
+        saved_openai_api_url = callbacks.loadExtensionSetting("ai_analyzer_openai_api_url") or config_loader.get("OPENAI_API_URL", "")
+        saved_openai_api_key = callbacks.loadExtensionSetting("ai_analyzer_openai_api_key") or config_loader.get("OPENAI_API_KEY", "")
+        saved_openai_model = callbacks.loadExtensionSetting("ai_analyzer_openai_model") or config_loader.get("OPENAI_DEFAULT_MODEL", "")
         saved_use_openai = callbacks.loadExtensionSetting("ai_analyzer_use_openai") == "true"
-        
+
+        # Save .env values to Burp settings for first run persistence
+        if not callbacks.loadExtensionSetting("ai_analyzer_api_key") and saved_api_key:
+            callbacks.saveExtensionSetting("ai_analyzer_api_key", saved_api_key)
+        if not callbacks.loadExtensionSetting("ai_analyzer_openrouter_model") and saved_openrouter_model:
+            callbacks.saveExtensionSetting("ai_analyzer_openrouter_model", saved_openrouter_model)
+        if not callbacks.loadExtensionSetting("ai_analyzer_ollama_url") and saved_ollama_url != "http://localhost:11434/api/generate":
+            callbacks.saveExtensionSetting("ai_analyzer_ollama_url", saved_ollama_url)
+        if not callbacks.loadExtensionSetting("ai_analyzer_ollama_model") and saved_ollama_model:
+            callbacks.saveExtensionSetting("ai_analyzer_ollama_model", saved_ollama_model)
+        if not callbacks.loadExtensionSetting("ai_analyzer_openai_api_url") and saved_openai_api_url:
+            callbacks.saveExtensionSetting("ai_analyzer_openai_api_url", saved_openai_api_url)
+        if not callbacks.loadExtensionSetting("ai_analyzer_openai_api_key") and saved_openai_api_key:
+            callbacks.saveExtensionSetting("ai_analyzer_openai_api_key", saved_openai_api_key)
+        if not callbacks.loadExtensionSetting("ai_analyzer_openai_model") and saved_openai_model:
+            callbacks.saveExtensionSetting("ai_analyzer_openai_model", saved_openai_model)
+
         # Verification and correction: ensure active model matches provider
         if saved_use_openai:
             saved_model = saved_openai_model or ""

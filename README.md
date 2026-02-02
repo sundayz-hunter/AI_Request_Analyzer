@@ -41,17 +41,19 @@ The extension supports three AI providers:
 - Supports a wide range of powerful models like Claude, GPT, etc.
 - Select a model from the list after fetching available models
 - For best results, prefer "instruct" models
+- Can be configured via UI or `.env` file (`OPENROUTER_API_KEY`, `OPENROUTER_DEFAULT_MODEL`)
 
 ### Ollama
 - Requires a local Ollama installation (get from [ollama.ai](https://ollama.ai))
 - Run models locally with no API keys needed
 - Enter your Ollama URL (default: http://localhost:11434/api/generate)
 - Click "Fetch Models" to see available models on your Ollama server
+- Can be configured via UI or `.env` file (`OLLAMA_API_URL`, `OLLAMA_DEFAULT_MODEL`)
 
 ### OpenAI-compatible
 - Use any OpenAI-compatible API endpoint
 - Supports: OpenAI, Groq, z.ai GLM, DeepSeek, Together AI, etc.
-- Configure:
+- Configure in UI or via `.env` file:
   - **API URL**: The endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
   - **API Key**: Your API key for the service
   - **Model Name**: The model to use (e.g., `gpt-4`, `claude-3-opus-20240229`, `glm-4`)
@@ -60,11 +62,14 @@ The extension supports three AI providers:
 
 ### 🔧 Environment Variables (.env)
 
-The extension works with default values without any custom configuration. However, if you want to customize its behavior:
+The extension can be configured via environment variables using a `.env` file:
 
-1. A template file `.env-dist` is provided instead
-2. Copy or rename `.env-dist` to `.env` to start using custom settings
-3. Edit the `.env` file to change settings according to your needs
+1. Copy `.env-dist` to `.env` to start using environment variables
+2. Edit the `.env` file with your API keys and preferences
+3. Environment variables are used as **defaults** when Burp settings are empty
+4. Once loaded from `.env`, values are saved to Burp settings for persistence
+
+**Note**: You can also configure everything through the Burp Suite UI without using `.env` files.
 
 If no `.env` file is found, the extension will use these default values:
 
@@ -80,6 +85,7 @@ MAX_MESSAGE_LENGTH=4000    # Maximum length before truncating HTTP messages
 # OpenRouter configuration
 OPENROUTER_MAX_TOKENS=800  # Maximum tokens for OpenRouter responses
 OPENROUTER_API_URL=        # Custom API URL (leave empty for default)
+OPENROUTER_API_KEY=         # API key for OpenRouter
 OPENROUTER_DEFAULT_MODEL=  # Default model to use (leave empty to select manually)
 OPENROUTER_TEMPERATURE=0.3 # Temperature for response generation (0.0-1.0)
 

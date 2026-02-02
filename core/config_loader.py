@@ -33,6 +33,7 @@ class ConfigLoader:
             # OpenRouter settings
             "OPENROUTER_MAX_TOKENS": 800,
             "OPENROUTER_API_URL": "https://openrouter.ai/api/v1/chat/completions",
+            "OPENROUTER_API_KEY": "",
             "OPENROUTER_DEFAULT_MODEL": "",
             "OPENROUTER_TEMPERATURE": 0.3,
 
