@@ -14,6 +14,18 @@ from utils.listeners import FetchModelsListener, FetchOllamaModelsListener
 from utils.listeners import TogglePasswordVisibilityListener, ToggleOllamaUrlVisibilityListener
 from utils.listeners import ToggleOpenAIUrlVisibilityListener, ToggleOpenAIKeyVisibilityListener
 
+# Shared constants for placeholders and dimensions
+MODEL_PLACEHOLDER = "Type your model name or fetch the list of available model"
+API_KEY_PLACEHOLDER = "Enter your API Key here..."
+OPENAI_URL_PLACEHOLDER = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODEL_PLACEHOLDER = "Enter your model name (e.g., gpt-4)"
+OLLAMA_URL_DEFAULT = "http://localhost:11434/api/generate"
+
+FIELD_DIM = Dimension(530, 25)
+ROW_DIM = Dimension(600, 30)
+EYE_BUTTON_DIM = Dimension(40, 25)
+
+
 class ConfigTab:
     """
     Configuration tab for the extension.
@@ -1298,3 +1310,36 @@ class ConfigTab:
             # Add a new listener with a complete list of models
             editor_component_ol.addKeyListener(
                 FilterKeyListener(self._ollama_model_combo, self._extender.get_available_models(True)))
+
+    def toggle_secret_field(self, field, button, hidden_attr_name, actual_value, placeholder):
+        """
+        Generic helper for toggling visibility of sensitive fields (URLs, API keys).
+
+        Args:
+            field: The JTextField to update
+            button: The JButton to update text on
+            hidden_attr_name: The attribute name for the hidden state (e.g., "_is_api_key_hidden")
+            actual_value: The actual value to show/hide
+            placeholder: The placeholder text to ignore
+        """
+        if not hasattr(self, hidden_attr_name):
+            return
+
+        hidden = not getattr(self, hidden_attr_name)
+        setattr(self, hidden_attr_name, hidden)
+
+        if not actual_value or actual_value == placeholder:
+            button.setText("View" if hidden else "Hide")
+            return
+
+        if hidden:
+            field.setText('*' * len(actual_value))
+            button.setText("View")
+        else:
+            field.setText(actual_value)
+            button.setText("Hide")
+
+        field.revalidate()
+        field.repaint()
+        button.revalidate()
+        button.repaint()

@@ -451,79 +451,54 @@ class TogglePasswordVisibilityListener(ActionListener):
     """
     Listener for toggling API key visibility.
     """
-    
+
     def __init__(self, config_tab):
         """
         Initialize the listener.
-        
+
         Args:
             config_tab: The configuration tab
         """
         self._config_tab = config_tab
-    
+
     def actionPerformed(self, event):
-        # Toggle between "View" and "Hide"
-        current_button_text = self._config_tab._toggle_api_key_button.getText()
         actual_key = self._config_tab._extender.get_config()["api_key"]
-        
-        # Toggle state
-        self._config_tab._is_api_key_hidden = not self._config_tab._is_api_key_hidden
-        
-        # Update UI based on new state
-        if self._config_tab._is_api_key_hidden:
-            # If hiding, change to "View" and mask the key
-            self._config_tab._toggle_api_key_button.setText("View")
-            if actual_key and actual_key != "Enter your API Key here...":
-                self._config_tab._api_key_field.setText('*' * len(actual_key))
-        else:
-            # If showing, change to "Hide" and show the key
-            self._config_tab._toggle_api_key_button.setText("Hide")
-            if actual_key and actual_key != "Enter your API Key here...":
-                self._config_tab._api_key_field.setText(actual_key)
+        placeholder = "Enter your API Key here..."
+        self._config_tab.toggle_secret_field(
+            self._config_tab._api_key_field,
+            self._config_tab._toggle_api_key_button,
+            "_is_api_key_hidden",
+            actual_key,
+            placeholder,
+        )
 
 
 class ToggleOllamaUrlVisibilityListener(ActionListener):
     """
     Listener for toggling Ollama URL visibility.
     """
-    
+
     def __init__(self, config_tab):
         """
         Initialize the listener.
-        
+
         Args:
             config_tab: The configuration tab
         """
         self._config_tab = config_tab
-    
+
     def actionPerformed(self, event):
-        # Toggle visibility state
-        self._config_tab._is_ollama_url_hidden = not self._config_tab._is_ollama_url_hidden
-        
-        # Get the actual URL from config
         actual_url = self._config_tab._extender.get_config()["ollama_url"]
-        
-        # If no URL, do nothing
+        placeholder = ""
         if not actual_url:
             return
-        
-        # Update display based on state
-        if self._config_tab._is_ollama_url_hidden:
-            # Mask the URL
-            self._config_tab._ollama_url_field.setText('*' * len(actual_url))
-            # Update button text
-            self._config_tab._toggle_ollama_url_button.setText("View")
-        else:
-            # Show the URL
-            self._config_tab._ollama_url_field.setText(actual_url)
-            # Update button text
-            self._config_tab._toggle_ollama_url_button.setText("Hide")
-        
-        # Force UI update
-        self._config_tab._ollama_url_field.revalidate()
-        self._config_tab._ollama_url_field.repaint()
-        self._config_tab._toggle_ollama_url_button.revalidate()
-        self._config_tab._toggle_ollama_url_button.repaint()
+        self._config_tab.toggle_secret_field(
+            self._config_tab._ollama_url_field,
+            self._config_tab._toggle_ollama_url_button,
+            "_is_ollama_url_hidden",
+            actual_url,
+            placeholder,
+        )
 
 class ClearCacheListener(ActionListener):
     """
@@ -707,34 +682,17 @@ class ToggleOpenAIUrlVisibilityListener(ActionListener):
         self._config_tab = config_tab
 
     def actionPerformed(self, event):
-        # Toggle visibility state
-        self._config_tab._is_openai_url_hidden = not self._config_tab._is_openai_url_hidden
-
-        # Get the actual URL from config
         actual_url = self._config_tab._extender.get_config().get("openai_api_url", "")
         placeholder = "https://api.openai.com/v1/chat/completions"
-
-        # If no URL or placeholder, do nothing
         if not actual_url or actual_url == placeholder:
             return
-
-        # Update display based on state
-        if self._config_tab._is_openai_url_hidden:
-            # Mask the URL
-            self._config_tab._openai_url_field.setText('*' * len(actual_url))
-            # Update button text
-            self._config_tab._toggle_openai_url_button.setText("View")
-        else:
-            # Show the URL
-            self._config_tab._openai_url_field.setText(actual_url)
-            # Update button text
-            self._config_tab._toggle_openai_url_button.setText("Hide")
-
-        # Force UI update
-        self._config_tab._openai_url_field.revalidate()
-        self._config_tab._openai_url_field.repaint()
-        self._config_tab._toggle_openai_url_button.revalidate()
-        self._config_tab._toggle_openai_url_button.repaint()
+        self._config_tab.toggle_secret_field(
+            self._config_tab._openai_url_field,
+            self._config_tab._toggle_openai_url_button,
+            "_is_openai_url_hidden",
+            actual_url,
+            placeholder,
+        )
 
 
 class ToggleOpenAIKeyVisibilityListener(ActionListener):
@@ -752,22 +710,12 @@ class ToggleOpenAIKeyVisibilityListener(ActionListener):
         self._config_tab = config_tab
 
     def actionPerformed(self, event):
-        # Toggle state
-        current_button_text = self._config_tab._toggle_openai_api_key_button.getText()
         actual_key = self._config_tab._extender.get_config().get("openai_api_key", "")
         placeholder = "Enter your API Key here..."
-
-        # Toggle state
-        self._config_tab._is_openai_api_key_hidden = not self._config_tab._is_openai_api_key_hidden
-
-        # Update UI based on new state
-        if self._config_tab._is_openai_api_key_hidden:
-            # If hiding, change to "View" and mask the key
-            self._config_tab._toggle_openai_api_key_button.setText("View")
-            if actual_key and actual_key != placeholder:
-                self._config_tab._openai_api_key_field.setText('*' * len(actual_key))
-        else:
-            # If showing, change to "Hide" and show the key
-            self._config_tab._toggle_openai_api_key_button.setText("Hide")
-            if actual_key and actual_key != placeholder:
-                self._config_tab._openai_api_key_field.setText(actual_key)
+        self._config_tab.toggle_secret_field(
+            self._config_tab._openai_api_key_field,
+            self._config_tab._toggle_openai_api_key_button,
+            "_is_openai_api_key_hidden",
+            actual_key,
+            placeholder,
+        )
