@@ -12,10 +12,14 @@
 
 - Analyze HTTP requests for security issues with "AI Suggest" tab
 - Understand HTTP responses with the "AI Explain" tab
-- Support for multiple AI providers (OpenRouter or local Ollama)
+- Support for multiple AI providers:
+  - **OpenRouter** - Access to Claude, GPT-4, and many other models
+  - **Ollama** - Run models locally without API keys
+  - **OpenAI-compatible** - Use any OpenAI-compatible API (OpenAI, Groq, z.ai GLM, DeepSeek, etc.)
 - Caching system to avoid repeated analysis of identical requests
 - Configurable prompt templates
-- API Key management
+- Streaming responses with real-time feedback
+- Support for reasoning models (GLM, DeepSeek-R1)
 
 ![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png)
 
@@ -30,7 +34,7 @@
 
 ## ⚙️ Configuration
 
-The extension supports two AI providers:
+The extension supports three AI providers:
 
 ### OpenRouter
 - Requires an API key (get one from [openrouter.ai](https://openrouter.ai))
@@ -43,6 +47,16 @@ The extension supports two AI providers:
 - Run models locally with no API keys needed
 - Enter your Ollama URL (default: http://localhost:11434/api/generate)
 - Click "Fetch Models" to see available models on your Ollama server
+
+### OpenAI-compatible
+- Use any OpenAI-compatible API endpoint
+- Supports: OpenAI, Groq, z.ai GLM, DeepSeek, Together AI, etc.
+- Configure:
+  - **API URL**: The endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
+  - **API Key**: Your API key for the service
+  - **Model Name**: The model to use (e.g., `gpt-4`, `claude-3-opus-20240229`, `glm-4`)
+- No "Fetch Models" button - enter the model name manually
+- Supports reasoning models like GLM and DeepSeek-R1 (only shows final answer, not reasoning)
 
 ### 🔧 Environment Variables (.env)
 
@@ -73,6 +87,12 @@ OPENROUTER_TEMPERATURE=0.3 # Temperature for response generation (0.0-1.0)
 OLLAMA_API_URL=            # Custom API URL (leave empty for default)
 OLLAMA_DEFAULT_MODEL=      # Default model to use (leave empty to select manually)
 OLLAMA_TEMPERATURE=0.3     # Temperature for response generation (0.0-1.0)
+
+# OpenAI-compatible configuration
+OPENAI_API_URL=            # Custom API URL (e.g., https://api.openai.com/v1/chat/completions)
+OPENAI_API_KEY=            # API key for the service
+OPENAI_DEFAULT_MODEL=      # Default model to use (e.g., gpt-4, claude-3-opus-20240229)
+OPENAI_TEMPERATURE=0.3     # Temperature for response generation (0.0-1.0)
 ```
 
 ![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png)
@@ -136,7 +156,7 @@ The project is organized into the following modules:
 
 - **main.py**: Main extension entry point
 - **core/**: Core functionality
-  - **api_handlers.py**: API communication with OpenRouter and Ollama
+  - **api_handlers.py**: API communication with OpenRouter, Ollama, and OpenAI-compatible APIs
   - **cache.py**: Caching system with performance optimizations
   - **config_loader.py**: Configuration and .env file handling
   - **models.py**: Model management

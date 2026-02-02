@@ -26,20 +26,26 @@ class ConfigLoader:
             "CACHE_MAX_SIZE_MB": 100,
             "CACHE_MAX_AGE_DAYS": 30,
             "CACHE_MAX_ENTRIES": 1000,
-            
+
             # Message settings
             "MAX_MESSAGE_LENGTH": 4000,
-            
+
             # OpenRouter settings
             "OPENROUTER_MAX_TOKENS": 800,
             "OPENROUTER_API_URL": "https://openrouter.ai/api/v1/chat/completions",
             "OPENROUTER_DEFAULT_MODEL": "",
             "OPENROUTER_TEMPERATURE": 0.3,
-            
+
             # Ollama settings
             "OLLAMA_API_URL": "http://localhost:11434/api/generate",
             "OLLAMA_DEFAULT_MODEL": "",
-            "OLLAMA_TEMPERATURE": 0.3
+            "OLLAMA_TEMPERATURE": 0.3,
+
+            # OpenAI-compatible settings
+            "OPENAI_API_URL": "",
+            "OPENAI_API_KEY": "",
+            "OPENAI_DEFAULT_MODEL": "",
+            "OPENAI_TEMPERATURE": 0.3
         }
         
         # Try to load .env file
