@@ -13,6 +13,8 @@ DEFAULT_HTTP_ERROR_MESSAGE = "HTTP Error {0} when connecting to OpenRouter.\nPle
 FALLBACK_ERROR_MESSAGE = "Error: Could not get a valid response from OpenRouter."
 STREAMING_FALLBACK_ERROR_MESSAGE = "Error: Both streaming and non-streaming requests failed."
 OLLAMA_ERROR_MESSAGE = "Error connecting to Ollama (stream): {0}\n\nCheck that the Ollama server is running at: {1}\n\nAlternative: try switching to OpenRouter which has better compatibility with Burp Suite."
+OPENAI_ERROR_MESSAGE = "Error connecting to OpenAI-compatible API: {0}\n\nPlease check your configuration in the AI Request Analyzer tab."
+OPENAI_CONFIG_ERROR_MESSAGE = "Error: OpenAI-compatible API not configured.\n\nPlease configure the URL, API Key, and Model in the AI Request Analyzer tab."
 
 class BaseAPIHandler:
     """
@@ -75,6 +77,13 @@ class OpenRouterHandler(BaseAPIHandler):
         }
         
         # Build payload with streaming mode
+        # Increase max_tokens for all models (800 is too low, responses get cut off)
+        max_tokens = config.get("OPENROUTER_MAX_TOKENS", 800)
+        if "glm" in model.lower() or "deepseek" in model.lower() or "r1" in model.lower():
+            max_tokens = 8000  # Reasoning models need even more tokens
+        else:
+            max_tokens = 4000  # Regular models need more than 800
+
         payload = {
             "model": model,
             "messages": [
@@ -82,7 +91,7 @@ class OpenRouterHandler(BaseAPIHandler):
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": config.get("OPENROUTER_TEMPERATURE", 0.3),
-            "max_tokens": config.get("OPENROUTER_MAX_TOKENS", 800),
+            "max_tokens": max_tokens,
             "stream": True
         }
         
@@ -93,8 +102,8 @@ class OpenRouterHandler(BaseAPIHandler):
         self._stdout.write("Sending request to OpenRouter API (streaming mode)\n")
         self._stdout.write("Model: " + model + "\n")
         
-        # Convert to JSON
-        data = json.dumps(payload)
+        # Convert to JSON and encode to bytes for Jython
+        data = json.dumps(payload).encode('utf-8')
         
         try:
             # Make request
@@ -536,3 +545,287 @@ class OllamaHandler(BaseAPIHandler):
                 on_complete([], "HTTP Error: " + str(response_code))
         except Exception as e:
             on_complete([], "Connection error: " + str(e))
+
+
+class OpenAIHandler(BaseAPIHandler):
+    """
+    Handles API communication with OpenAI-compatible APIs (e.g., z.ai GLM).
+    """
+
+    def analyze_message(self, message, is_request, update_callback):
+        """
+        Analyze a message using OpenAI-compatible API.
+
+        Args:
+            message: The message content
+            is_request: Whether the message is a request or response
+            update_callback: Callback function to update the UI with progress/results
+
+        Returns:
+            Analysis result text
+        """
+        config = self._extender.get_config()
+        api_url = config.get("openai_api_url", "")
+        api_key = config.get("openai_api_key", "")
+        model = config.get("openai_model", "")
+
+        # Validate configuration
+        if not api_url or api_url.strip() == "":
+            error_text = OPENAI_CONFIG_ERROR_MESSAGE
+            update_callback(error_text)
+            return error_text
+
+        if not api_key or api_key.strip() == "":
+            error_text = OPENAI_CONFIG_ERROR_MESSAGE
+            update_callback(error_text)
+            return error_text
+
+        if not model or model.strip() == "":
+            error_text = OPENAI_CONFIG_ERROR_MESSAGE
+            update_callback(error_text)
+            return error_text
+
+        # Limit message size to prevent excessive token usage
+        max_message_length = config.get("MAX_MESSAGE_LENGTH", 4000)
+        message_str = self._extender._helpers.bytesToString(message)
+
+        # Use the truncate function from helpers
+        short_message = self._extender.truncate_message(message_str, max_message_length)
+
+        # Set appropriate prompt based on message type
+        if is_request:
+            system_prompt = self._extender.get_config().get("suggest_prompt", "")
+            user_prompt = "Analyze this HTTP request for security issues:\n\n" + short_message
+        else:
+            system_prompt = self._extender.get_config().get("explain_prompt", "")
+            user_prompt = "Analyze this HTTP response:\n\n" + short_message
+
+        # OpenAI-compatible API headers
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + api_key
+        }
+
+        # Build payload with streaming mode
+        # Increase max_tokens for all models (800 is too low, responses get cut off)
+        max_tokens = config.get("OPENROUTER_MAX_TOKENS", 800)
+        if "glm" in model.lower() or "deepseek" in model.lower() or "r1" in model.lower():
+            max_tokens = 8000  # Reasoning models need even more tokens
+        else:
+            max_tokens = 4000  # Regular models need more than 800
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": config.get("OPENROUTER_TEMPERATURE", 0.3),
+            "max_tokens": max_tokens,
+            "stream": True
+        }
+
+        # Initial message
+        update_callback("Analysis in progress...")
+
+        # Minimal debug info
+        self._stdout.write("Sending request to OpenAI-compatible API (streaming mode)\n")
+        self._stdout.write("URL: " + api_url + "\n")
+        self._stdout.write("Model: " + model + "\n")
+
+        # Convert to JSON and encode to bytes for Jython
+        data = json.dumps(payload).encode('utf-8')
+
+        # Convert to native Python types (important in Jython)
+        api_url = str(api_url)
+        headers = dict(headers)
+
+        try:
+            # Make request
+            req = urllib2.Request(api_url, data, headers)
+            self._stdout.write("Sending HTTP request to OpenAI-compatible API\n")
+            response = urllib2.urlopen(req, timeout=120)
+            self._stdout.write("Response received, starting to read stream\n")
+
+            # Character-by-character strategy for OpenAI-compatible API
+            full_response = ""
+            chunk_count = 0
+            last_update_time = time.time()
+            line_count = 0
+            is_reasoning_model = False  # Track if this is a reasoning model
+            found_reasoning = False  # Track if we've seen reasoning_content
+
+            for line in response:
+                line_count += 1
+                line = line.strip()
+
+                if line_count <= 5:
+                    self._stdout.write("Line " + str(line_count) + ": " + str(line[:100] if len(line) > 100 else line) + "\n")
+
+                if not line:
+                    continue
+
+                # Skip [DONE] marker - convert to string for comparison
+                line_str = line.decode('utf-8') if isinstance(line, bytes) else line
+                if line_str == "data: [DONE]":
+                    self._stdout.write("Received [DONE] marker\n")
+                    continue
+
+                try:
+                    # Each line is a JSON with SSE format - skip "data: " prefix
+                    if line_str.startswith("data: "):
+                        json_str = line_str[6:]
+                        if json_str == "{}":
+                            continue
+                        chunk_json = json.loads(json_str)
+                    else:
+                        chunk_json = json.loads(line)
+
+                    if "choices" in chunk_json and chunk_json["choices"] and "delta" in chunk_json["choices"][0]:
+                        delta = chunk_json["choices"][0]["delta"]
+
+                        # Check if this is a reasoning model (has reasoning_content but no content yet)
+                        if "reasoning_content" in delta and delta["reasoning_content"] and "content" not in delta:
+                            found_reasoning = True
+                        if found_reasoning and "content" not in delta:
+                            is_reasoning_model = True
+
+                        # Only process content, NEVER reasoning_content
+                        # Reasoning models: we wait for the final content to arrive
+                        if "content" in delta and delta["content"]:
+                            chunk_count += 1
+                            full_response += delta["content"]
+
+                            # Update UI frequently for responsive feedback
+                            current_time = time.time()
+                            time_since_last_update = current_time - last_update_time
+
+                            if chunk_count <= 20 or time_since_last_update >= 0.1:
+                                update_callback(full_response)
+                                last_update_time = current_time
+                except Exception as e:
+                    self._stdout.write("OpenAI stream chunk error: " + str(e) + "\n")
+                    continue
+
+            self._stdout.write("Stream complete. Total lines: " + str(line_count) + ", Content chunks: " + str(chunk_count) + "\n")
+            if is_reasoning_model:
+                self._stdout.write("Reasoning model detected - only final content was streamed\n")
+
+            # Return whatever we received in the stream
+            if full_response:
+                update_callback(full_response)
+                self._stdout.write("OpenAI-compatible analysis complete - " + str(len(full_response)) + " chars\n")
+                return full_response
+            else:
+                # No content at all - try fallback
+                self._stdout.write("No content received from streaming. Trying fallback...\n")
+                update_callback("Analyzing with OpenAI-compatible API...")
+                return self._fallback_to_non_streaming(api_url, headers, payload, update_callback)
+
+        except urllib2.HTTPError as e:
+            error_text = OPENAI_ERROR_MESSAGE.format(str(e))
+            update_callback(error_text)
+            return error_text
+        except Exception as e:
+            self._stdout.write("Error processing OpenAI-compatible request: " + str(e) + "\n")
+            error_text = OPENAI_ERROR_MESSAGE.format(str(e))
+            update_callback(error_text)
+            return error_text
+
+    def _fallback_to_non_streaming(self, url, headers, payload, update_callback):
+        """
+        Fallback to non-streaming mode if streaming fails.
+
+        Args:
+            url: The API URL
+            headers: Request headers
+            payload: Request payload
+            update_callback: Callback function to update the UI
+
+        Returns:
+            Analysis result text
+        """
+        try:
+            self._stdout.write("Falling back to non-streaming mode\n")
+
+            # Modify payload to disable streaming
+            payload_copy = dict(payload)
+            payload_copy["stream"] = False
+
+            # Convert to JSON and encode to bytes for Jython
+            data = json.dumps(payload_copy).encode('utf-8')
+
+            # Convert to native Python types (important in Jython)
+            url = str(url)
+            headers = dict(headers)
+
+            self._stdout.write("Sending request to: " + url + "\n")
+
+            # Make request
+            req = urllib2.Request(url, data, headers)
+            response = urllib2.urlopen(req, timeout=120)
+
+            # Parse response
+            response_data = response.read()
+            self._stdout.write("Fallback response received: " + str(len(response_data)) + " bytes\n")
+
+            # Decode bytes to string for JSON parsing
+            response_str = response_data.decode('utf-8') if isinstance(response_data, bytes) else response_data
+            self._stdout.write("Response (first 500 chars): " + response_str[:500] + "\n")
+
+            response_json = json.loads(response_str)
+            self._stdout.write("JSON parsed successfully\n")
+
+            # Extract content - check both 'content' and 'reasoning_content'
+            if "choices" in response_json and response_json["choices"]:
+                first_choice = response_json["choices"][0]
+                if "message" in first_choice:
+                    message = first_choice["message"]
+
+                    # Try content (final answer) first, then reasoning_content (reasoning)
+                    # Prioritize final content over reasoning
+                    content = None
+                    if "content" in message and message["content"]:
+                        content = message["content"]
+                        self._stdout.write("Using content, length: " + str(len(content)) + "\n")
+                    elif "reasoning_content" in message and message["reasoning_content"]:
+                        content = message["reasoning_content"]
+                        self._stdout.write("Using reasoning_content, length: " + str(len(content)) + "\n")
+
+                    if content:
+                        update_callback(content)
+                        self._stdout.write("Fallback request successful - content displayed\n")
+                        return content
+                    else:
+                        self._stdout.write("No content found in message (content and reasoning_content are empty)\n")
+                else:
+                    self._stdout.write("No 'message' in first_choice\n")
+            else:
+                self._stdout.write("No 'choices' in response or choices is empty\n")
+                if "error" in response_json:
+                    self._stdout.write("Found 'error' in response: " + str(response_json["error"]) + "\n")
+
+            # If couldn't extract content - log what we received
+            self._stdout.write("Failed to extract content from fallback response\n")
+            self._stdout.write("Response keys: " + str(response_json.keys()) + "\n")
+            update_callback(FALLBACK_ERROR_MESSAGE)
+            return FALLBACK_ERROR_MESSAGE
+
+        except urllib2.HTTPError as e:
+            error_text = OPENAI_ERROR_MESSAGE.format(str(e))
+            self._stdout.write("HTTP Error in fallback: " + str(e) + "\n")
+            # Try to read error response
+            try:
+                error_body = e.read()
+                self._stdout.write("Error body: " + str(error_body) + "\n")
+            except:
+                pass
+            update_callback(error_text)
+            return error_text
+
+        except Exception as e:
+            import traceback
+            self._stdout.write("Fallback request failed: " + str(e) + "\n")
+            self._stdout.write("Traceback: " + traceback.format_exc() + "\n")
+            update_callback("Error: " + str(e))
+            return "Error: " + str(e)

@@ -7,7 +7,7 @@ import os
 # Import core modules
 from core.cache import AnalysisCache
 from core.models import ModelManager
-from core.api_handlers import OpenRouterHandler, OllamaHandler
+from core.api_handlers import OpenRouterHandler, OllamaHandler, OpenAIHandler
 from utils.helpers import truncate_message
 
 # Import UI modules
@@ -39,6 +39,12 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         saved_ollama_url = callbacks.loadExtensionSetting(
             "ai_analyzer_ollama_url") or "http://localhost:11434/api/generate"
         saved_use_ollama = callbacks.loadExtensionSetting("ai_analyzer_use_ollama") == "true"
+
+        # Load OpenAI-compatible settings
+        saved_openai_api_url = callbacks.loadExtensionSetting("ai_analyzer_openai_api_url") or ""
+        saved_openai_api_key = callbacks.loadExtensionSetting("ai_analyzer_openai_api_key") or ""
+        saved_openai_model = callbacks.loadExtensionSetting("ai_analyzer_openai_model") or ""
+        saved_use_openai = callbacks.loadExtensionSetting("ai_analyzer_use_openai") == "true"
         
         # Verification and correction: ensure active model matches provider
         if saved_use_ollama:
@@ -66,6 +72,10 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
             "ollama_url": saved_ollama_url,
             "ollama_model": saved_ollama_model,
             "openrouter_model": saved_openrouter_model,
+            "openai_api_url": saved_openai_api_url,
+            "openai_api_key": saved_openai_api_key,
+            "openai_model": saved_openai_model,
+            "use_openai": saved_use_openai,
             "suggest_prompt": self._load_prompt_file(callbacks, "prompts/suggest_prompt.txt"),
             "explain_prompt": self._load_prompt_file(callbacks, "prompts/explain_prompt.txt")
         }
@@ -93,6 +103,7 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         # Initialize API handlers
         self._openrouter_handler = OpenRouterHandler(self)
         self._ollama_handler = OllamaHandler(self)
+        self._openai_handler = OpenAIHandler(self)
         
         # Store callbacks for later use
         self._callbacks = callbacks
@@ -196,7 +207,28 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         elif key == "use_ollama":
             self._config[key] = value
             self._callbacks.saveExtensionSetting("ai_analyzer_use_ollama", "true" if value else "False")
-        
+
+        elif key == "openai_api_url":
+            self._config[key] = value
+            self._callbacks.saveExtensionSetting("ai_analyzer_openai_api_url", value)
+
+        elif key == "openai_api_key":
+            self._config[key] = value
+            self._callbacks.saveExtensionSetting("ai_analyzer_openai_api_key", value)
+
+        elif key == "openai_model":
+            if value not in placeholder_values:
+                self._config[key] = value
+                self._callbacks.saveExtensionSetting("ai_analyzer_openai_model", value)
+
+                if self._config.get("use_openai", False):
+                    self._config["model"] = value
+                    self._callbacks.saveExtensionSetting("ai_analyzer_model", value)
+
+        elif key == "use_openai":
+            self._config[key] = value
+            self._callbacks.saveExtensionSetting("ai_analyzer_use_openai", "true" if value else "False")
+
         else:
             self._config[key] = value
     
@@ -239,52 +271,58 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab):
         return self._cache_manager.get_cache_stats()
     
     # Model management methods
-    def get_available_models(self, use_ollama=False):
+    def get_available_models(self, use_ollama=False, use_openai=False):
         """
         Get available models.
-        
+
         Args:
             use_ollama: Whether to get Ollama models
-            
+            use_openai: Whether to get OpenAI-compatible models
+
         Returns:
             List of model names
         """
-        return self._model_manager.get_available_models(use_ollama)
-    
-    def add_available_model(self, model, use_ollama=False):
+        return self._model_manager.get_available_models(use_ollama, use_openai)
+
+    def add_available_model(self, model, use_ollama=False, use_openai=False):
         """
         Add a model to available models.
-        
+
         Args:
             model: Model name
             use_ollama: Whether it's an Ollama model
-            
+            use_openai: Whether it's an OpenAI-compatible model
+
         Returns:
             True if added, False if already exists
         """
-        return self._model_manager.add_available_model(model, use_ollama)
-    
-    def set_available_models(self, models, use_ollama=False):
+        return self._model_manager.add_available_model(model, use_ollama, use_openai)
+
+    def set_available_models(self, models, use_ollama=False, use_openai=False):
         """
         Set all available models.
-        
+
         Args:
             models: List of model names
             use_ollama: Whether they're Ollama models
+            use_openai: Whether they're OpenAI-compatible models
         """
-        self._model_manager.set_available_models(models, use_ollama)
+        self._model_manager.set_available_models(models, use_ollama, use_openai)
     
     # API handling methods
-    def get_api_handler(self, use_ollama=False):
+    def get_api_handler(self, use_ollama=False, use_openai=False):
         """
         Get the appropriate API handler based on configuration.
-        
+
         Args:
             use_ollama: Whether to use Ollama
-            
+            use_openai: Whether to use OpenAI-compatible
+
         Returns:
             API handler instance
         """
+        if use_openai:
+            return self._openai_handler
         if use_ollama:
             return self._ollama_handler
         else:
