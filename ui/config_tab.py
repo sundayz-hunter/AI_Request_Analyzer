@@ -579,7 +579,7 @@ class ConfigTab:
 
         # URL field with border
         saved_openai_url = self._extender.get_config().get("openai_api_url", "")
-        openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+        openai_url_placeholder = "Enter OpenAI API URL here..."
         self._openai_url_field = JTextField(saved_openai_url or openai_url_placeholder, 60)
         self._openai_url_field.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Color.GRAY),
@@ -616,8 +616,7 @@ class ConfigTab:
         self._toggle_openai_url_button.addActionListener(ToggleOpenAIUrlVisibilityListener(self))
 
         # Initially mask the OpenAI URL if it's not empty and not a placeholder
-        openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
-        if saved_openai_url and saved_openai_url != openai_url_placeholder:
+        if saved_openai_url:
             masked_url = '*' * len(saved_openai_url)
             self._openai_url_field.setText(masked_url)
 
@@ -1140,9 +1139,9 @@ class ConfigTab:
 
                     # Update OpenAI URL field with saved value
                     openai_url = self._extender.get_config().get("openai_api_url", "")
-                    openai_url_placeholder = "https://api.openai.com/v1/chat/completions"
+                    openai_url_placeholder = "Enter OpenAI API URL here..."
                     if hasattr(self, "_openai_url_field"):
-                        if openai_url and openai_url != openai_url_placeholder:
+                        if openai_url:
                             # URL is configured, show it (masked if hidden)
                             if self._is_openai_url_hidden:
                                 self._openai_url_field.setText('*' * len(openai_url))
@@ -1153,16 +1152,15 @@ class ConfigTab:
 
                     # Update OpenAI API key field with saved value
                     openai_key = self._extender.get_config().get("openai_api_key", "")
-                    openai_key_placeholder = "Enter your API Key here..."
                     if hasattr(self, "_openai_api_key_field"):
-                        if openai_key and openai_key != openai_key_placeholder:
+                        if openai_key:
                             # Key is configured, show it (masked if hidden)
                             if self._is_openai_api_key_hidden:
                                 self._openai_api_key_field.setText('*' * len(openai_key))
                             else:
                                 self._openai_api_key_field.setText(openai_key)
                         else:
-                            self._openai_api_key_field.setText(openai_key_placeholder)
+                            self._openai_api_key_field.setText("Enter your API Key here...")
 
                 elif use_ollama:
                     # Reset OpenRouter ComboBox
